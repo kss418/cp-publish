@@ -35,10 +35,12 @@ AtCoder는 `ABC`, `ARC`, `AGC`, `AHC`, `PAST`를 지원합니다.
 ABC/400/420/422/A_Stage_Clear.cpp
 ```
 
-Codeforces 일반 라운드는 contest 번호 기준으로 저장합니다. 라운드 이름에 공식 `Codeforces Round` 토큰이 있으면 앞에 sponsor나 event 이름이 붙어 있어도 일반 라운드로 봅니다.
+Codeforces는 라운드 이름과 별개로 모든 contest에 URL/API 숫자 ID가 있습니다. README 링크와 API 조회에는 `https://codeforces.com/contest/2222`의 `2222` 같은 contest ID를 쓰지만, 저장 경로에는 `Codeforces Round 1094`의 `1094` 같은 라운드 번호를 씁니다.
+
+일반 라운드는 라운드 번호 기준으로 저장합니다. 라운드 이름에 공식 `Codeforces Round` 토큰이 있으면 앞에 sponsor나 event 이름이 붙어 있어도 일반 라운드로 봅니다.
 
 ```text
-2000/2060/2061/A.cpp
+1000/1090/1094/A.cpp
 ```
 
 Educational Round는 `Educational/` 아래에 저장합니다.
@@ -47,11 +49,15 @@ Educational Round는 `Educational/` 아래에 저장합니다.
 Educational/100/160/162/A.cpp
 ```
 
-Global Round, Hello, Good Bye, ICPC/IOI mirror, Kotlin Heroes, April Fools, Testing Round, 그리고 공식 `Codeforces Round` 토큰이 없는 sponsor/event contest는 `Others/` 아래에 저장합니다.
+Global Round, Hello, Good Bye, ICPC/IOI mirror, Kotlin Heroes, April Fools, Testing Round, 그리고 공식 `Codeforces Round` 토큰이 없는 sponsor/event contest는 contest 그룹 이름과 숫자 식별자를 뽑아 `Others/` 아래에 저장합니다.
 
 ```text
-Others/2000/2060/2062/C.cpp
+Others/Global_Round/0/10/11/C.cpp
+Others/Good_Bye/0/20/22/A.cpp
+Others/April_Fools/0/0/3/A.cpp
 ```
+
+contest 그룹이나 라운드 번호를 안정적으로 뽑을 수 없으면 Codex가 사용자에게 `contest_group` 또는 `round_number`를 다시 물어봅니다.
 
 자세한 규칙은 `references/path-rules.md`를 봅니다.
 
@@ -205,7 +211,7 @@ python3 scripts/plan_publish.py /path/to/solution.cpp --tags DP,Greedy
       "tags": "DP, Greedy"
     }
   ],
-  "commit_message": "Add Codeforces 2061A solution",
+  "commit_message": "Add Codeforces 1094A solution",
   "needs_confirmation": false
 }
 ```

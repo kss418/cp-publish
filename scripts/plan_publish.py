@@ -74,6 +74,8 @@ class CodeforcesTarget:
     problem_id: str
     contest_kind: str | None = None
     contest_title: str | None = None
+    round_number: str | None = None
+    contest_group: str | None = None
 
 
 def normalize_ext(path: Path) -> str:
@@ -101,6 +103,28 @@ def normalize_codeforces_kind(value: str) -> str:
     if lowered in {"other", "others"}:
         return "Others"
     raise argparse.ArgumentTypeError("contest kind must be regular, Educational, or Others")
+
+
+def normalize_codeforces_round_number(value: str) -> str:
+    cleaned = value.strip()
+    if not re.fullmatch(r"\d+", cleaned):
+        raise argparse.ArgumentTypeError("Codeforces round number must be a positive integer")
+    number = int(cleaned)
+    if number <= 0:
+        raise argparse.ArgumentTypeError("Codeforces round number must be a positive integer")
+    return str(number)
+
+
+def normalize_codeforces_contest_group(value: str) -> str:
+    cleaned = value.strip()
+    if not cleaned:
+        raise argparse.ArgumentTypeError("Codeforces contest group must not be empty")
+    cleaned = re.sub(r"[\\/:*?\"<>|]", "", cleaned)
+    cleaned = re.sub(r"[^A-Za-z0-9]+", "_", cleaned)
+    cleaned = re.sub(r"_+", "_", cleaned).strip("_")
+    if not cleaned:
+        raise argparse.ArgumentTypeError("Codeforces contest group must contain letters or digits")
+    return cleaned
 
 
 def rating_markdown(value: Any) -> str:
@@ -577,6 +601,99 @@ def has_official_codeforces_round_token(title: str) -> bool:
     return re.search(r"\bcodeforces\s+(?:beta\s+)?round\b", title, re.IGNORECASE) is not None
 
 
+def extract_codeforces_round_number(title: str | None, contest_kind: str | None) -> str | None:
+    if not title:
+        return None
+
+    patterns: list[str] = []
+    if contest_kind == "Educational":
+        patterns.append(r"\beducational\s+codeforces\s+round\s+#?(\d+)\b")
+    elif contest_kind == "regular":
+        patterns.append(r"\bcodeforces\s+(?:beta\s+)?round\s+#?(\d+)\b")
+    elif contest_kind == "Others":
+        direct_patterns = [
+            r"\bcodeforces\s+global\s+round\s+#?(\d+)\b",
+            r"\bkotlin\s+heroes:\s*(?:episode|practice)\s+(\d+)\b",
+            r"\bapril\s+fools(?:\s+day)?\s+contest\s+#?(\d{1,3})\b",
+            r"\b(?:codeforces\s+)?testing\s+round\s+#?(\d+)\b",
+            r"\bround\s+#?(\d+)\b",
+        ]
+        for pattern in direct_patterns:
+            match = re.search(pattern, title, re.IGNORECASE)
+            if match:
+                return str(int(match.group(1)))
+
+        year_patterns = [
+            r"\b(?:hello|good\s+bye|goodbye)\s+((?:19|20)\d{2})\b",
+            r"\bapril\s+fools(?:\s+day)?\s+contest\s+((?:19|20)\d{2})\b",
+            r"\b((?:19|20)\d{2})\b",
+        ]
+        for pattern in year_patterns:
+            match = re.search(pattern, title, re.IGNORECASE)
+            if match:
+                return str(int(match.group(1)[-2:]))
+        return None
+    else:
+        patterns.extend(
+            [
+                r"\beducational\s+codeforces\s+round\s+#?(\d+)\b",
+                r"\bcodeforces\s+global\s+round\s+#?(\d+)\b",
+                r"\bcodeforces\s+(?:beta\s+)?round\s+#?(\d+)\b",
+                r"\b(?:hello|good\s+bye|goodbye)\s+(\d{4})\b",
+                r"\bround\s+#?(\d+)\b",
+            ]
+        )
+
+    for pattern in patterns:
+        match = re.search(pattern, title, re.IGNORECASE)
+        if match:
+            return str(int(match.group(1)))
+    return None
+
+
+def extract_codeforces_contest_group(title: str | None, contest_kind: str | None) -> str | None:
+    if contest_kind != "Others" or not title:
+        return None
+
+    lowered = title.lower()
+    group: str | None = None
+    if "codeforces global round" in lowered:
+        group = "Global_Round"
+    elif re.search(r"\bgood\s+bye\b|\bgoodbye\b", title, re.IGNORECASE):
+        group = "Good_Bye"
+    elif re.search(r"\bhello\b", title, re.IGNORECASE):
+        group = "Hello"
+    elif "april fools" in lowered:
+        group = "April_Fools"
+    elif "kotlin heroes" in lowered:
+        group = "Kotlin_Heroes"
+    elif "testing round" in lowered or "codeforces testing round" in lowered:
+        group = "Testing_Round"
+    elif "vk cup" in lowered:
+        group = "VK_Cup"
+    elif "technocup" in lowered or "технокубок" in lowered:
+        group = "Technocup"
+    elif "icpc" in lowered or "acm-icpc" in lowered:
+        group = "ICPC"
+    elif "ioi" in lowered:
+        group = "IOI"
+    else:
+        match = re.search(
+            r"^\s*(.+?\b(?:Round|Contest|Cup|Challenge|Forces|Heroes|Marathon|Championship))\b",
+            title,
+            re.IGNORECASE,
+        )
+        if match:
+            group = match.group(1)
+        else:
+            group = re.split(r"\s*[\(\[:\-]\s*", title, maxsplit=1)[0]
+
+    try:
+        return normalize_codeforces_contest_group(group)
+    except argparse.ArgumentTypeError:
+        return None
+
+
 def classify_codeforces_contest(
     contest_id: str,
     explicit_kind: str | None,
@@ -609,30 +726,81 @@ def classify_codeforces_contest(
     return "Others", title
 
 
+def resolve_codeforces_round_number(target: CodeforcesTarget) -> str | None:
+    if target.round_number:
+        try:
+            return normalize_codeforces_round_number(target.round_number)
+        except argparse.ArgumentTypeError as exc:
+            raise PlanError(str(exc)) from exc
+    return extract_codeforces_round_number(target.contest_title, target.contest_kind)
+
+
+def resolve_codeforces_contest_group(target: CodeforcesTarget) -> str | None:
+    if target.contest_kind != "Others":
+        return None
+    if target.contest_group:
+        try:
+            return normalize_codeforces_contest_group(target.contest_group)
+        except argparse.ArgumentTypeError as exc:
+            raise PlanError(str(exc)) from exc
+    return extract_codeforces_contest_group(target.contest_title, target.contest_kind)
+
+
 def build_codeforces_target(route: Route, target: CodeforcesTarget, ext: str) -> Path:
-    contest_number = int(target.contest_id)
-    hundreds = (contest_number // 100) * 100
-    tens = (contest_number // 10) * 10
+    round_number = resolve_codeforces_round_number(target)
+    if not round_number:
+        raise PlanError(
+            f"Codeforces round number could not be determined for contest {target.contest_id}; "
+            "provide --round-number or include a contest title with a numeric round."
+        )
+
+    folder_number = int(round_number)
+    hundreds = (folder_number // 100) * 100
+    tens = (folder_number // 10) * 10
     filename = f"{normalize_codeforces_problem_id(target.problem_id)}{ext}"
     base = route.target_base
     if target.contest_kind == "Educational":
         base = base / "Educational"
     elif target.contest_kind == "Others":
-        base = base / "Others"
-    return base / str(hundreds) / str(tens) / str(contest_number) / filename
+        contest_group = resolve_codeforces_contest_group(target)
+        if not contest_group:
+            raise PlanError(
+                f"Codeforces contest group could not be determined for contest {target.contest_id}; "
+                "provide --contest-group or include a contest title."
+            )
+        base = base / "Others" / contest_group
+    return base / str(hundreds) / str(tens) / str(folder_number) / filename
 
 
 def parse_additional_target(raw: str, default_kind: str | None) -> CodeforcesTarget:
     parts = raw.split(":")
-    if len(parts) not in {2, 3}:
-        raise PlanError("--additional-target must use CONTEST_ID:PROBLEM_ID[:KIND]")
-    kind = parts[2] if len(parts) == 3 else default_kind
+    if len(parts) not in {2, 3, 4, 5}:
+        raise PlanError("--additional-target must use CONTEST_ID:PROBLEM_ID[:KIND[:ROUND_NUMBER[:CONTEST_GROUP]]]")
+    kind = parts[2] if len(parts) >= 3 and parts[2] else default_kind
+    round_number = parts[3] if len(parts) >= 4 and parts[3] else None
+    contest_group = parts[4] if len(parts) == 5 else None
     if kind:
         try:
             kind = normalize_codeforces_kind(kind)
         except argparse.ArgumentTypeError as exc:
             raise PlanError(f"Unsupported Codeforces contest kind in additional target: {kind}") from exc
-    return CodeforcesTarget(contest_id=parts[0], problem_id=parts[1], contest_kind=kind)
+    if round_number:
+        try:
+            round_number = normalize_codeforces_round_number(round_number)
+        except argparse.ArgumentTypeError as exc:
+            raise PlanError(str(exc)) from exc
+    if contest_group:
+        try:
+            contest_group = normalize_codeforces_contest_group(contest_group)
+        except argparse.ArgumentTypeError as exc:
+            raise PlanError(str(exc)) from exc
+    return CodeforcesTarget(
+        contest_id=parts[0],
+        problem_id=parts[1],
+        contest_kind=kind,
+        round_number=round_number,
+        contest_group=contest_group,
+    )
 
 
 def build_update_command(update: dict[str, Any]) -> list[str]:
@@ -742,6 +910,8 @@ def plan_codeforces(
         problem_id=detection.problem_id,
         contest_kind=main_kind,
         contest_title=main_title,
+        round_number=args.round_number,
+        contest_group=args.contest_group,
     )
     targets = [main_target]
     for raw in args.additional_target:
@@ -761,6 +931,8 @@ def plan_codeforces(
     target_paths: list[str] = []
     readme_updates: list[dict[str, Any]] = []
     target_metadata: list[dict[str, Any]] = []
+    readme_urls_by_dir: dict[str, str] = {}
+    readme_url_warnings: set[str] = set()
 
     for target in targets:
         if not target.contest_kind:
@@ -768,6 +940,14 @@ def plan_codeforces(
             target.contest_kind = "regular"
         target_path = build_codeforces_target(route, target, ext)
         contest_url = f"https://codeforces.com/contest/{target.contest_id}"
+        contest_dir_key = str(target_path.parent)
+        readme_url = readme_urls_by_dir.setdefault(contest_dir_key, contest_url)
+        if readme_url != contest_url and contest_dir_key not in readme_url_warnings:
+            warnings.append(
+                f"Multiple Codeforces contest IDs share README {target_path.parent / 'README.md'}; "
+                f"using {readme_url} as the header."
+            )
+            readme_url_warnings.add(contest_dir_key)
         rating = rating_markdown(args.rating) if args.rating else codeforces_rating(
             target.contest_id,
             target.problem_id,
@@ -777,7 +957,7 @@ def plan_codeforces(
         readme_updates.append(
             make_readme_update(
                 contest_dir=target_path.parent,
-                contest_url=contest_url,
+                contest_url=readme_url,
                 problem_id=normalize_codeforces_problem_id(target.problem_id),
                 rating=rating,
                 tags=tags,
@@ -787,6 +967,8 @@ def plan_codeforces(
             {
                 "contest_url": contest_url,
                 "contest_id": target.contest_id,
+                "round_number": resolve_codeforces_round_number(target),
+                "contest_group": resolve_codeforces_contest_group(target),
                 "contest_kind": target.contest_kind,
                 "contest_title": target.contest_title,
                 "problem_id": normalize_codeforces_problem_id(target.problem_id),
@@ -797,9 +979,7 @@ def plan_codeforces(
     return {
         "targets": target_paths,
         "readme_updates": readme_updates,
-        "commit_message": (
-            f"Add Codeforces {detection.contest_id}{normalize_codeforces_problem_id(detection.problem_id)} solution"
-        ),
+        "commit_message": f"Add Codeforces {resolve_codeforces_round_number(main_target)}{normalize_codeforces_problem_id(detection.problem_id)} solution",
         "metadata": {"targets": target_metadata},
     }
 
@@ -927,10 +1107,20 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument("--contest-title", help="Codeforces contest title used for path classification.")
     parser.add_argument(
+        "--round-number",
+        type=normalize_codeforces_round_number,
+        help="Codeforces round number used for path placement.",
+    )
+    parser.add_argument(
+        "--contest-group",
+        type=normalize_codeforces_contest_group,
+        help="Codeforces Others group directory name, for example Global_Round.",
+    )
+    parser.add_argument(
         "--additional-target",
         action="append",
         default=[],
-        help="Extra Codeforces target as CONTEST_ID:PROBLEM_ID[:regular|Educational|Others].",
+        help="Extra Codeforces target as CONTEST_ID:PROBLEM_ID[:KIND[:ROUND_NUMBER[:CONTEST_GROUP]]].",
     )
     parser.add_argument("--rating", help="Override README rating. Use '-' for unknown.")
     parser.add_argument("--tags", help="Comma-separated README tags.")

@@ -304,7 +304,7 @@ The script combines solution detection, configured repository routing, path rule
 }
 ```
 
-If `needs_confirmation` is `true`, stop and ask the user to confirm the ambiguous or risky parts before modifying files. Common confirmation triggers include weak detection evidence, missing README tags, missing AtCoder problem title, unknown Codeforces contest kind, unknown source extension, or an existing target file.
+If `needs_confirmation` is `true`, stop and ask the user to confirm the ambiguous or risky parts before modifying files. Common confirmation triggers include weak detection evidence, missing README tags, missing AtCoder problem title, unknown Codeforces contest kind, missing Codeforces round number, missing Codeforces Others contest group, unknown source extension, or an existing target file.
 
 When network metadata is unavailable because sandbox access is blocked, request approval to rerun the same planning command with network access. If metadata is still unavailable, continue only when the user confirms the missing contest/problem details.
 
@@ -366,5 +366,5 @@ Stage and commit only explicit paths. Preserve unrelated user changes in the wor
 Use concise commit messages:
 
 - `Add AtCoder ABC350 A solution`
-- `Add Codeforces 1900A solution`
+- `Add Codeforces 1094A solution`
 - `Update AtCoder ABC350 B solution`

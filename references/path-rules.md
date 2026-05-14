@@ -84,30 +84,32 @@ If an AtCoder task suffix contains multiple parts, preserve it as the problem la
 
 ## Codeforces
 
-For regular numeric contests, use:
+For regular numeric Codeforces rounds, use the Codeforces round number:
 
 ```text
-<target_base>/<hundreds_bucket>/<tens_bucket>/<contest_id>/<problem_id>.<ext>
+<target_base>/<hundreds_bucket>/<tens_bucket>/<round_number>/<problem_id>.<ext>
 ```
 
-For Educational contests, use the same bucket structure under `Educational`:
+For Educational rounds, use the Educational round number under `Educational`:
 
 ```text
-<target_base>/Educational/<hundreds_bucket>/<tens_bucket>/<contest_id>/<problem_id>.<ext>
+<target_base>/Educational/<hundreds_bucket>/<tens_bucket>/<round_number>/<problem_id>.<ext>
 ```
 
-For non-regular named contests, use the same bucket structure under `Others`:
+For non-regular named contests, use the normalized contest group and the numeric round identifier from the contest name under `Others`:
 
 ```text
-<target_base>/Others/<hundreds_bucket>/<tens_bucket>/<contest_id>/<problem_id>.<ext>
+<target_base>/Others/<contest_group>/<hundreds_bucket>/<tens_bucket>/<round_number>/<problem_id>.<ext>
 ```
 
 Normalize:
 
-- `contest_id`: numeric contest ID as written by Codeforces, for example `1900`.
+- `contest_id`: numeric contest ID from the Codeforces URL/API, for example the `2222` in `https://codeforces.com/contest/2222`. Use this for API lookup and README links, not for folder placement.
+- `round_number`: numeric identifier parsed from the contest name. This is the folder number. For example, `Spectral::Cup 2026 Round 1 (Codeforces Round 1094, Div. 1 + Div. 2)` uses `1094`, not contest ID `2222`.
+- `contest_group`: for `Others` only, a normalized group name derived from the contest title, with spaces and punctuation replaced by underscores.
 - `contest_kind`: one of regular numeric contest, Educational contest, or Others. Ignore Div. 1, Div. 2, and Div. 3 labels for path placement.
-- `hundreds_bucket`: `(contest_id // 100) * 100`, for example `1900 -> 1900` and `1917 -> 1900`.
-- `tens_bucket`: `(contest_id // 10) * 10`, for example `1900 -> 1900` and `1917 -> 1910`.
+- `hundreds_bucket`: `(round_number // 100) * 100`, for example `1094 -> 1000`.
+- `tens_bucket`: `(round_number // 10) * 10`, for example `1094 -> 1090`.
 - `problem_id`: uppercase problem index, preserving multi-part indices such as `A1`, `B2`, or `C`.
 - `ext`: normalized language extension.
 
@@ -122,35 +124,36 @@ Classify as regular numeric contests when the contest name contains an official 
 
 In other words, company, event, or sponsor text does not make a contest `Others` when the title still contains `Codeforces Round` as an official round token.
 
-Classify as `Educational` when the contest name contains `Educational Codeforces Round`.
+Classify as `Educational` when the contest name contains `Educational Codeforces Round`. Extract the number after that token.
 
-Classify these as `Others`:
+Classify these as `Others` and use these preferred group names when applicable:
 
-- Codeforces Global rounds.
-- Hello and Good Bye rounds.
-- ICPC, IOI, regional, online mirror, and team-preferred contests.
-- Kotlin Heroes, April Fools, Testing Round, VK Cup, Technocup, Russian Code Cup, and similar special series.
-- Company, product, sponsor, or event named contests that do not contain the official `Codeforces Round` token, such as `CodeTON Round`, `Pinely Round`, `EPIC Institute of Technology Round August 2024`, `Deltix Round`, and `Harbour.Space Scholarship Contest`.
+- Codeforces Global rounds: `Global_Round`. Use the Global Round number.
+- Hello rounds: `Hello`. Use the last two digits of the year, for example `Hello 2026 -> 26`.
+- Good Bye rounds: `Good_Bye`. Use the last two digits of the year, for example `Good Bye 2022 -> 22`.
+- April Fools contests: `April_Fools`. Use the numeric contest/round identifier when present; if the title only gives a year, use the last two digits of that year.
+- Kotlin Heroes: `Kotlin_Heroes`. Use the episode/practice number.
+- Testing Round: `Testing_Round`. Use the testing round number.
+- ICPC, IOI, regional, online mirror, and team-preferred contests: prefer `ICPC` or `IOI` when those tokens are present.
+- Company, product, sponsor, or event named contests that do not contain the official `Codeforces Round` token, such as `CodeTON Round`, `Pinely Round`, `Deltix Round`, and `Harbour.Space Scholarship Contest`. Normalize the series name and use the series round number when present.
+
+If no `contest_group` or numeric round identifier can be determined from the contest name, ask the user for `contest_group` and/or `round_number` before publishing. Do not silently fall back to the Codeforces contest ID for folder placement.
 
 Examples:
 
 | Signal | Target path below `target_base` |
 | --- | --- |
-| `https://codeforces.com/problemset/problem/1900/A` | `1900/1900/1900/A.cpp` |
-| `https://codeforces.com/contest/1917/problem/B` | `1900/1910/1917/B.cpp` |
-| `1900A.cpp` | `1900/1900/1900/A.cpp` |
-| `codeforces/1917/b.py` | `1900/1910/1917/B.py` |
-| `cf_1917_a1.rs` | `1900/1910/1917/A1.rs` |
-| Educational contest `1900`, problem `A` | `Educational/1900/1900/1900/A.cpp` |
-| `Spectral::Cup 2026 Round 1 (Codeforces Round 1094, Div. 1 + Div. 2)`, contest `2222`, problem `A` | `2200/2220/2222/A.cpp` |
-| `CodeTON Round 9`, contest `2039`, problem `B` | `Others/2000/2030/2039/B.cpp` |
-| Global Round contest `1917`, problem `B` | `Others/1900/1910/1917/B.cpp` |
-| Hello contest `1900`, problem `A` | `Others/1900/1900/1900/A.cpp` |
-| ICPC-style contest `1917`, problem `C` | `Others/1900/1910/1917/C.cpp` |
+| `https://codeforces.com/contest/2228/problem/A` with `Codeforces Round 1098 (Div. 2)` | `1000/1090/1098/A.cpp` |
+| `https://codeforces.com/contest/2222/problem/A` with `Spectral::Cup 2026 Round 1 (Codeforces Round 1094, Div. 1 + Div. 2)` | `1000/1090/1094/A.cpp` |
+| Educational contest ID `2225`, `Educational Codeforces Round 189`, problem `A` | `Educational/100/180/189/A.cpp` |
+| `CodeTON Round 9`, contest ID `2039`, problem `B` | `Others/CodeTON_Round/0/0/9/B.cpp` |
+| `Codeforces Global Round 11`, problem `C` | `Others/Global_Round/0/10/11/C.cpp` |
+| `Good Bye 2022`, problem `A` | `Others/Good_Bye/0/20/22/A.cpp` |
+| `April Fools Contest 3`, problem `A` | `Others/April_Fools/0/0/3/A.cpp` |
 
-If the contest looks Educational but the numeric contest ID is unclear, ask the user before publishing.
+If the contest looks Educational but the round number is unclear, ask the user before publishing.
 
-If the contest looks like Global, Hello, Good Bye, ICPC, IOI, online mirror, or special named contest but the numeric contest ID is unclear, ask the user before publishing.
+If the contest looks like Global, Hello, Good Bye, ICPC, IOI, online mirror, or special named contest but the contest group or round number is unclear, ask the user before publishing.
 
 If the contest kind is unclear, ask the user whether to place it as regular numeric, `Educational`, or `Others`.
 
@@ -163,20 +166,20 @@ When reliable metadata says the submitted solution corresponds to multiple Codef
 Represent the targets as pairs:
 
 ```text
-contest_id=<contest id>, problem_id=<problem id>
+contest_id=<contest id>, round_number=<round number>, contest_group=<contest group for Others>, problem_id=<problem id>
 ```
 
 Apply the normal Codeforces path rule to each pair:
 
 ```text
-<target_base>/<hundreds_bucket>/<tens_bucket>/<contest_id>/<problem_id>.<ext>
+<target_base>/<hundreds_bucket>/<tens_bucket>/<round_number>/<problem_id>.<ext>
 ```
 
 Example:
 
 | Shared problem mapping | Target paths below `target_base` |
 | --- | --- |
-| Div. 2 `1917A` == Div. 1 `1916C` | `1900/1910/1917/A.cpp` and `1900/1910/1916/C.cpp` |
+| Div. 2 `2188A` == Div. 1 `2187C`, both from Codeforces Round `1077` | `1000/1070/1077/A.cpp` and `1000/1070/1077/C.cpp` |
 
 For multiple targets, copy the source solution to each target path. Do not move the source into only one target when more than one target is required.
 
@@ -196,6 +199,7 @@ Ask the user before moving or copying files when any of these are true:
 - Multiple candidate solution files are plausible.
 - The platform cannot be determined confidently.
 - The contest ID or problem ID cannot be determined confidently.
+- The Codeforces round number cannot be determined confidently.
 - The Codeforces contest kind cannot be determined confidently.
 - A Codeforces problem may belong to a combined Div. 1 + Div. 2 round but the paired target is unclear.
 - The AtCoder problem title cannot be determined confidently.
@@ -208,6 +212,8 @@ The confirmation should show:
 source: <source path>
 platform: <atcoder|codeforces>
 contest_id: <contest id>
+round_number: <round number, for Codeforces path placement>
+contest_group: <contest group, for Codeforces Others>
 problem_id: <problem id>
 contest_kind: <regular|Educational|Others, for Codeforces>
 problem_title: <problem title, for AtCoder>
