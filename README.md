@@ -62,13 +62,13 @@ Others/2000/2060/2062/C.cpp
 Windows:
 
 ```powershell
-git clone <this-repo-url> $env:USERPROFILE\.codex\skills\cp-publish
+git clone https://github.com/kss418/cp-publish $env:USERPROFILE\.codex\skills\cp-publish
 ```
 
 macOS / Linux:
 
 ```sh
-git clone <this-repo-url> ~/.codex/skills/cp-publish
+git clone https://github.com/kss418/cp-publish ~/.codex/skills/cp-publish
 ```
 
 이미 로컬에 받은 폴더가 있다면 해당 폴더 전체를 위 위치로 복사해도 됩니다. 최소한 다음 파일과 폴더가 함께 있어야 합니다.
@@ -112,77 +112,35 @@ python3 scripts/install_dependencies.py --dry-run
 python3 scripts/github_integration.py auth
 ```
 
-## 초기 설정
+## 저장소 설정
 
-풀이를 올릴 GitHub 저장소를 먼저 설정해야 합니다. AtCoder와 Codeforces를 서로 다른 저장소로 쓰는 경우와, 한 저장소 안에 폴더를 나누는 경우를 모두 지원합니다.
+풀이를 올릴 GitHub 저장소 설정도 스킬 실행 중 Codex가 확인합니다. 설정 파일이 없거나, 현재 publish하려는 플랫폼 route가 없으면 Codex가 필요한 값을 물어보고 `scripts/configure_repos.py`로 설정합니다.
 
-### AtCoder 저장소만 설정
+Codex가 물어보는 내용은 보통 다음과 같습니다.
 
-Windows:
+- AtCoder만 쓸지, Codeforces만 쓸지, 둘 다 쓸지
+- AtCoder와 Codeforces를 서로 다른 저장소로 둘지
+- 한 저장소 안에서 `atcoder/`, `codeforces/` 같은 폴더로 나눌지
+- 각 저장소의 로컬 경로
+- 저장소 안에서 사용할 base directory
 
-```powershell
-python scripts/configure_repos.py init --platform atcoder --atcoder-repo C:\path\to\atcoder --atcoder-base-dir .
-```
+Codeforces만 푸는 사용자는 AtCoder route를 설정하지 않아도 됩니다. 반대로 AtCoder만 푸는 사용자도 Codeforces route 없이 사용할 수 있습니다.
 
-macOS / Linux:
-
-```sh
-python3 scripts/configure_repos.py init --platform atcoder --atcoder-repo /path/to/atcoder --atcoder-base-dir .
-```
-
-### Codeforces 저장소만 설정
+직접 미리 설정하고 싶을 때만 아래 명령을 사용하면 됩니다.
 
 Windows:
 
 ```powershell
-python scripts/configure_repos.py init --platform codeforces --codeforces-repo C:\path\to\codeforces --codeforces-base-dir .
-```
-
-macOS / Linux:
-
-```sh
-python3 scripts/configure_repos.py init --platform codeforces --codeforces-repo /path/to/codeforces --codeforces-base-dir .
-```
-
-### AtCoder / Codeforces를 서로 다른 저장소로 설정
-
-Windows:
-
-```powershell
-python scripts/configure_repos.py init --platform both --atcoder-repo C:\path\to\atcoder --codeforces-repo C:\path\to\codeforces --atcoder-base-dir . --codeforces-base-dir .
-```
-
-macOS / Linux:
-
-```sh
-python3 scripts/configure_repos.py init --platform both --atcoder-repo /path/to/atcoder --codeforces-repo /path/to/codeforces --atcoder-base-dir . --codeforces-base-dir .
-```
-
-### 한 저장소 안에 플랫폼 폴더로 나누기
-
-Windows:
-
-```powershell
-python scripts/configure_repos.py init --platform both --atcoder-repo C:\path\to\cp-solutions --codeforces-repo C:\path\to\cp-solutions --atcoder-base-dir atcoder --codeforces-base-dir codeforces
-```
-
-macOS / Linux:
-
-```sh
-python3 scripts/configure_repos.py init --platform both --atcoder-repo /path/to/cp-solutions --codeforces-repo /path/to/cp-solutions --atcoder-base-dir atcoder --codeforces-base-dir codeforces
-```
-
-설정이 끝나면 검증합니다.
-
-```powershell
+python scripts/configure_repos.py init
 python scripts/configure_repos.py validate
 ```
 
+macOS / Linux:
+
 ```sh
+python3 scripts/configure_repos.py init
 python3 scripts/configure_repos.py validate
 ```
-
-Codeforces만 푸는 사용자는 AtCoder route를 설정하지 않아도 됩니다. 반대로 AtCoder만 푸는 사용자도 Codeforces route 없이 사용할 수 있습니다.
 
 ## Codex에서 사용하는 법
 
