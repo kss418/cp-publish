@@ -65,6 +65,7 @@ class Route:
     repo_path: Path
     base_dir: str
     target_base: Path
+    user_id: str | None
     warnings: list[str]
 
 
@@ -436,6 +437,7 @@ def load_route(platform: str, config_path: str | None) -> Route:
         )
 
     repos = config.get("repositories") or {}
+    users = config.get("users") or {}
     repo_name = route.get("repo")
     repo = repos.get(repo_name)
     if not repo:
@@ -453,6 +455,7 @@ def load_route(platform: str, config_path: str | None) -> Route:
         repo_path=repo_path,
         base_dir=base_dir,
         target_base=target_base,
+        user_id=users.get(platform),
         warnings=relevant_warnings,
     )
 
@@ -822,12 +825,31 @@ def build_update_command(update: dict[str, Any]) -> list[str]:
     return command
 
 
+def build_contest_result_command(platform: str, contest_id: str, user_id: str | None) -> list[str] | None:
+    if not user_id:
+        return None
+    script_name = "atcoder_results.py" if platform == "atcoder" else "codeforces_results.py"
+    return [
+        sys.executable,
+        str(Path(__file__).with_name(script_name)),
+        "contest",
+        "--contest-id",
+        contest_id,
+        "--user",
+        user_id,
+    ]
+
+
 def make_readme_update(
     contest_dir: Path,
     contest_url: str,
     problem_id: str,
     rating: str,
     tags: str | None,
+    *,
+    platform: str,
+    contest_id: str,
+    user_id: str | None,
 ) -> dict[str, Any]:
     update = {
         "readme": str(contest_dir / "README.md"),
@@ -835,6 +857,8 @@ def make_readme_update(
         "problem_id": problem_id,
         "rating": rating,
         "tags": tags,
+        "user_id": user_id,
+        "contest_result_command": build_contest_result_command(platform, contest_id, user_id),
     }
     update["command"] = build_update_command(update)
     return update
@@ -871,6 +895,9 @@ def plan_atcoder(
         problem_id=normalize_atcoder_problem_id(detection.problem_id),
         rating=rating,
         tags=tags,
+        platform="atcoder",
+        contest_id=detection.contest_id.lower(),
+        user_id=route.user_id,
     )
 
     return {
@@ -883,6 +910,7 @@ def plan_atcoder(
             "problem_id": normalize_atcoder_problem_id(detection.problem_id),
             "problem_title": problem_title,
             "rating": rating,
+            "user_id": route.user_id,
         },
     }
 
@@ -961,6 +989,9 @@ def plan_codeforces(
                 problem_id=normalize_codeforces_problem_id(target.problem_id),
                 rating=rating,
                 tags=tags,
+                platform="codeforces",
+                contest_id=target.contest_id,
+                user_id=route.user_id,
             )
         )
         target_metadata.append(
@@ -973,6 +1004,7 @@ def plan_codeforces(
                 "contest_title": target.contest_title,
                 "problem_id": normalize_codeforces_problem_id(target.problem_id),
                 "rating": rating,
+                "user_id": route.user_id,
             }
         )
 
@@ -1033,6 +1065,13 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
 
     route = load_route(detection.platform, args.config)
     warnings.extend(route.warnings)
+    if not route.user_id:
+        user_warning = (
+            f"{detection.platform} user id is not configured; ask the user and run "
+            f"`scripts/configure_repos.py user {detection.platform} --id <id>` before adding contest results to README."
+        )
+        if not any("user id" in warning and detection.platform in warning for warning in warnings):
+            warnings.append(user_warning)
 
     if detection.platform == "atcoder":
         platform_plan = plan_atcoder(source, detection, route, args, warnings)
@@ -1053,6 +1092,8 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         needs_confirmation = True
     if any("required" in warning.lower() or "ambiguous" in warning.lower() for warning in warnings):
         needs_confirmation = True
+    if not route.user_id:
+        needs_confirmation = True
     if check_target_conflicts(platform_plan["targets"], warnings):
         needs_confirmation = True
 
@@ -1061,6 +1102,7 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         "platform": detection.platform,
         "repo": str(route.repo_path),
         "base_dir": route.base_dir,
+        "user_id": route.user_id,
         "targets": platform_plan["targets"],
         "readme_updates": platform_plan["readme_updates"],
         "commit_message": platform_plan["commit_message"],

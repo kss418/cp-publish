@@ -189,6 +189,18 @@ Use the resolved `repo_path` and `base_dir` as the only target destination for t
 
 If the detected platform has no configured route, stop and ask the user to add that platform route. Do not fall back to another platform's repository.
 
+Repository config also stores the user's platform ID for contest result tables. If `resolve <platform> --json` has no `user_id`, ask the user for their AtCoder user ID or Codeforces handle and save it before README result updates:
+
+```powershell
+python scripts/configure_repos.py user atcoder --id <atcoder_id>
+python scripts/configure_repos.py user codeforces --id <codeforces_handle>
+```
+
+```sh
+python3 scripts/configure_repos.py user atcoder --id <atcoder_id>
+python3 scripts/configure_repos.py user codeforces --id <codeforces_handle>
+```
+
 ## Codeforces Metadata
 
 Run `scripts/codeforces_metadata.py` whenever Codeforces contest names, contest kinds, problem names, or problem ratings are needed for path placement or README updates. The script automatically uses a fresh-enough cache and fetches from the Codeforces API when the cache is missing or stale.
@@ -239,6 +251,70 @@ Use Kenkoooo estimated difficulty as the AtCoder README rating when available. I
 
 If a metadata fetch fails because network access is blocked by the sandbox, request approval to rerun the same metadata command with network access. If the user does not approve or the API remains unavailable, continue only when the available local evidence is sufficient; otherwise ask the user to confirm the missing contest/problem metadata.
 
+## Contest Results
+
+Use `scripts/codeforces_results.py` or `scripts/atcoder_results.py` when README work needs the user's own contest result, especially per-problem wrong attempts and accepted time. These scripts fetch platform data, use a fresh-enough cache, and normalize the result into JSON.
+
+Codeforces:
+
+```powershell
+python scripts/codeforces_results.py contest --contest-id 2061 --user tourist
+```
+
+```sh
+python3 scripts/codeforces_results.py contest --contest-id 2061 --user tourist
+```
+
+The Codeforces script reads `contest.standings` first and falls back to `contest.status` for the requested handle when the user row is not present in standings.
+
+AtCoder:
+
+```powershell
+python scripts/atcoder_results.py contest --contest-id abc422 --user chokudai
+python scripts/atcoder_results.py contest --contest-id abc422 --user chokudai --source kenkoooo-submissions
+```
+
+```sh
+python3 scripts/atcoder_results.py contest --contest-id abc422 --user chokudai
+python3 scripts/atcoder_results.py contest --contest-id abc422 --user chokudai --source kenkoooo-submissions
+```
+
+The AtCoder script uses AtCoder standings JSON by default. Use `--source kenkoooo-submissions` when standings JSON is unavailable or when computing from Kenkoooo user submissions is preferred.
+
+Normalized output shape:
+
+```json
+{
+  "platform": "codeforces",
+  "user": "...",
+  "participated": true,
+  "contest": {
+    "contest_id": "...",
+    "round_number": "...",
+    "contest_name": "...",
+    "url": "..."
+  },
+  "problems": [
+    {
+      "problem_id": "A",
+      "wrong_attempts": 0,
+      "accepted_at_seconds": 420
+    }
+  ],
+  "source": {
+    "standings": "contest.standings",
+    "submissions": null
+  },
+  "fetched_at_unix": 0
+}
+```
+
+AtCoder output omits `round_number`.
+
+When result JSON is available, pass it to `scripts/update_readme.py` with `--results-json`. The README updater adds or refreshes a table with `Problem`, `Wrong`, and `AC Time` rows. If the result script reports that the user was not found in standings or has no contest submissions, skip the result table and continue with the solution entry only.
+
+If a result fetch fails because network access is blocked by the sandbox, request approval to rerun the same command with network access. Do not use these result APIs to fetch private source code or credentials.
+
 ## File Placement Rules
 
 Before moving or copying a solution, load `references/path-rules.md`.
@@ -265,11 +341,13 @@ Use `scripts/update_readme.py` to create or update a contest README entry:
 ```powershell
 python scripts/update_readme.py --contest-dir C:\path\to\contest --contest-url https://codeforces.com/contest/2061 --problem-id A --rating 800 --tags Case_Work
 python scripts/update_readme.py --contest-dir C:\path\to\contest --contest-url https://atcoder.jp/contests/abc422 --problem-id A --rating - --tags Case_Work
+python scripts/update_readme.py --contest-dir C:\path\to\contest --contest-url https://codeforces.com/contest/2061 --problem-id A --rating 800 --tags Case_Work --results-json C:\path\to\results.json
 ```
 
 ```sh
 python3 scripts/update_readme.py --contest-dir /path/to/contest --contest-url https://codeforces.com/contest/2061 --problem-id A --rating 800 --tags Case_Work
 python3 scripts/update_readme.py --contest-dir /path/to/contest --contest-url https://atcoder.jp/contests/abc422 --problem-id A --rating - --tags Case_Work
+python3 scripts/update_readme.py --contest-dir /path/to/contest --contest-url https://codeforces.com/contest/2061 --problem-id A --rating 800 --tags Case_Work --results-json /path/to/results.json
 ```
 
 ## Publish Plan
@@ -322,14 +400,17 @@ When network metadata is unavailable because sandbox access is blocked, request 
    - User prompt.
 6. If confidence is low or multiple problems are plausible, ask the user for confirmation before modifying files.
 7. Resolve the configured route for the detected platform.
-8. Run `scripts/plan_publish.py` for the candidate source and inspect the JSON plan.
-9. If `needs_confirmation` is `true`, ask the user to confirm before modifying files.
-10. Load `references/path-rules.md` and use the planned target path or paths under the resolved `target_base`.
-11. Move or copy the solution into the resolved repository and base directory. For multiple Codeforces targets, copy to every target.
-12. Load `references/readme-format.md` and `references/solution-tags.md`, then update the contest `README.md`. Update other README, index, or problem list files when the repository uses them.
-13. Run lightweight validation for the solution language when practical.
-14. Commit only the relevant solution and index changes.
-15. Push with `git`/`gh` without force-pushing.
+8. If the route has no `user_id`, ask the user for their platform ID and save it with `scripts/configure_repos.py user <platform> --id <id>`.
+9. Run `scripts/plan_publish.py` for the candidate source and inspect the JSON plan.
+10. If `needs_confirmation` is `true`, ask the user to confirm before modifying files.
+11. Load `references/path-rules.md` and use the planned target path or paths under the resolved `target_base`.
+12. Move or copy the solution into the resolved repository and base directory. For multiple Codeforces targets, copy to every target.
+13. Load `references/readme-format.md` and `references/solution-tags.md`.
+14. If a configured user ID exists, run the planned `contest_result_command`; when it succeeds, pass its JSON to `scripts/update_readme.py --results-json`.
+15. Update the contest `README.md`. Update other README, index, or problem list files when the repository uses them.
+16. Run lightweight validation for the solution language when practical.
+17. Commit only the relevant solution and index changes.
+18. Push with `git`/`gh` without force-pushing.
 
 ## GitHub Helpers
 

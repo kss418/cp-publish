@@ -74,6 +74,15 @@ def normalize_base_dir(value: str) -> str:
     return normalized.rstrip("/")
 
 
+def normalize_user_id(value: str) -> str:
+    user_id = value.strip()
+    if not user_id:
+        raise ConfigError("user id must not be empty.")
+    if any(char.isspace() for char in user_id):
+        raise ConfigError(f"user id must not contain whitespace: {value!r}")
+    return user_id
+
+
 def same_path(left: Path, right: Path) -> bool:
     try:
         return left.samefile(right)
@@ -88,9 +97,12 @@ def build_config(
     codeforces_repo: Path | None,
     atcoder_base_dir: str | None,
     codeforces_base_dir: str | None,
+    atcoder_user: str | None = None,
+    codeforces_user: str | None = None,
 ) -> dict[str, Any]:
     repositories: dict[str, dict[str, str]] = {}
     routes: dict[str, dict[str, str]] = {}
+    users: dict[str, str] = {}
 
     configure_atcoder = "atcoder" in platforms
     configure_codeforces = "codeforces" in platforms
@@ -130,11 +142,19 @@ def build_config(
                 "base_dir": normalize_base_dir(codeforces_base_dir or "."),
             }
 
-    return {
+    if configure_atcoder and atcoder_user:
+        users["atcoder"] = normalize_user_id(atcoder_user)
+    if configure_codeforces and codeforces_user:
+        users["codeforces"] = normalize_user_id(codeforces_user)
+
+    data = {
         "version": CONFIG_VERSION,
         "repositories": repositories,
         "routes": routes,
     }
+    if users:
+        data["users"] = users
+    return data
 
 
 def read_config(path: Path) -> dict[str, Any]:
@@ -175,6 +195,8 @@ def init_config(args: argparse.Namespace, config_path: Path) -> None:
     codeforces_repo = args.codeforces_repo
     atcoder_base_dir = args.atcoder_base_dir
     codeforces_base_dir = args.codeforces_base_dir
+    atcoder_user = args.atcoder_user
+    codeforces_user = args.codeforces_user
 
     if "atcoder" in platforms and not atcoder_repo:
         atcoder_repo = prompt_path("AtCoder target repository path")
@@ -206,12 +228,19 @@ def init_config(args: argparse.Namespace, config_path: Path) -> None:
             "Codeforces base directory inside repo", default=default
         )
 
+    if "atcoder" in platforms and atcoder_user is None:
+        atcoder_user = prompt_path("AtCoder user ID for contest results")
+    if "codeforces" in platforms and codeforces_user is None:
+        codeforces_user = prompt_path("Codeforces handle for contest results")
+
     data = build_config(
         platforms=platforms,
         atcoder_repo=normalize_repo_path(atcoder_repo) if atcoder_repo else None,
         codeforces_repo=normalize_repo_path(codeforces_repo) if codeforces_repo else None,
         atcoder_base_dir=atcoder_base_dir,
         codeforces_base_dir=codeforces_base_dir,
+        atcoder_user=atcoder_user,
+        codeforces_user=codeforces_user,
     )
     write_config(config_path, data, force=args.force)
     print(f"wrote: {config_path}")
@@ -235,12 +264,18 @@ def validate_config(data: dict[str, Any]) -> tuple[list[str], list[str]]:
 
     repositories = data.get("repositories")
     routes = data.get("routes")
+    users = data.get("users", {})
     if not isinstance(repositories, dict) or not repositories:
         errors.append("repositories must be a non-empty object")
         repositories = {}
     if not isinstance(routes, dict):
         errors.append("routes must be an object")
         routes = {}
+    if users is None:
+        users = {}
+    if not isinstance(users, dict):
+        errors.append("users must be an object when present")
+        users = {}
 
     route_names = set(routes.keys())
     allowed = set(ALLOWED_PLATFORMS)
@@ -248,6 +283,20 @@ def validate_config(data: dict[str, Any]) -> tuple[list[str], list[str]]:
         errors.append("routes must contain at least one platform route")
     for unknown in sorted(route_names - allowed):
         errors.append(f"unsupported platform route: {unknown}")
+
+    user_names = set(users.keys())
+    for unknown in sorted(user_names - allowed):
+        errors.append(f"unsupported platform user: {unknown}")
+    for platform_name, user_id in users.items():
+        if platform_name not in allowed:
+            continue
+        if not isinstance(user_id, str) or not user_id.strip():
+            errors.append(f"user id for {platform_name} must be a non-empty string")
+            continue
+        try:
+            normalize_user_id(user_id)
+        except ConfigError as exc:
+            errors.append(f"user id for {platform_name}: {exc}")
 
     for repo_name, repo_info in repositories.items():
         if not isinstance(repo_name, str) or not REPO_NAME_RE.match(repo_name):
@@ -329,6 +378,11 @@ def validate_config(data: dict[str, Any]) -> tuple[list[str], list[str]]:
                 f"route {platform_name} base_dir does not exist yet: {target_dir}"
             )
 
+        if platform_name not in users:
+            warnings.append(
+                f"user id for {platform_name} is not configured; run `configure_repos.py user {platform_name}`."
+            )
+
     return errors, warnings
 
 
@@ -346,6 +400,13 @@ def print_summary(data: dict[str, Any], *, config_path: Path) -> None:
         print(
             f"  {platform_name}: repo={route.get('repo')} base_dir={route.get('base_dir', '.')}"
         )
+    users = data.get("users", {})
+    print("users:")
+    for platform_name in ALLOWED_PLATFORMS:
+        if platform_name in users:
+            print(f"  {platform_name}: {users[platform_name]}")
+        else:
+            print(f"  {platform_name}: (not configured)")
 
 
 def show_config(args: argparse.Namespace, config_path: Path) -> None:
@@ -423,6 +484,7 @@ def resolve_platform(args: argparse.Namespace, config_path: Path) -> int:
 
     route = data["routes"][args.platform]
     repo = data["repositories"][route["repo"]]
+    users = data.get("users") or {}
     repo_path = normalize_repo_path(repo["path"])
     base_dir = normalize_base_dir(route.get("base_dir", "."))
     target_base = (repo_path / base_dir).resolve()
@@ -432,6 +494,7 @@ def resolve_platform(args: argparse.Namespace, config_path: Path) -> int:
         "repo_path": str(repo_path),
         "base_dir": base_dir,
         "target_base": str(target_base),
+        "user_id": users.get(args.platform),
         "warnings": warnings,
     }
 
@@ -443,11 +506,49 @@ def resolve_platform(args: argparse.Namespace, config_path: Path) -> int:
         print(f"repo_path: {result['repo_path']}")
         print(f"base_dir: {result['base_dir']}")
         print(f"target_base: {result['target_base']}")
+        print(f"user_id: {result['user_id'] or '(not configured)'}")
         if warnings:
             print("warnings:")
             for warning in warnings:
                 print(f"  - {warning}")
 
+    return 0
+
+
+def configure_user(args: argparse.Namespace, config_path: Path) -> int:
+    if args.clear and args.user_id:
+        raise ConfigError("pass either --clear or --id, not both.")
+
+    data = read_config(config_path)
+    users = data.setdefault("users", {})
+    if not isinstance(users, dict):
+        raise ConfigError("users must be an object when present.")
+
+    if args.clear:
+        users.pop(args.platform, None)
+        action = "cleared"
+    else:
+        user_id = args.user_id
+        if user_id is None:
+            label = "AtCoder user ID" if args.platform == "atcoder" else "Codeforces handle"
+            user_id = prompt_path(label)
+        users[args.platform] = normalize_user_id(user_id)
+        action = "updated"
+
+    write_config(config_path, data, force=True)
+
+    result = {
+        "config_path": str(config_path),
+        "platform": args.platform,
+        "user_id": users.get(args.platform),
+        "action": action,
+    }
+    if args.json:
+        print(json.dumps(result, indent=2))
+    else:
+        print(f"{action}: {args.platform} user id")
+        print(f"config: {config_path}")
+        print(f"user_id: {result['user_id'] or '(not configured)'}")
     return 0
 
 
@@ -488,6 +589,8 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Codeforces base directory inside its repo. Use '.' for repo root.",
     )
+    init_parser.add_argument("--atcoder-user", help="AtCoder user ID for contest results.")
+    init_parser.add_argument("--codeforces-user", help="Codeforces handle for contest results.")
     init_parser.add_argument("--force", action="store_true", help="Overwrite config.")
 
     show_parser = subparsers.add_parser("show", help="Show repository routing config.")
@@ -499,6 +602,12 @@ def build_parser() -> argparse.ArgumentParser:
     resolve_parser = subparsers.add_parser("resolve", help="Resolve a platform route.")
     resolve_parser.add_argument("platform", choices=ALLOWED_PLATFORMS)
     resolve_parser.add_argument("--json", action="store_true", help="Print JSON.")
+
+    user_parser = subparsers.add_parser("user", help="Set or clear a platform user ID.")
+    user_parser.add_argument("platform", choices=ALLOWED_PLATFORMS)
+    user_parser.add_argument("--id", dest="user_id", help="User ID or handle to save.")
+    user_parser.add_argument("--clear", action="store_true", help="Remove the saved user ID.")
+    user_parser.add_argument("--json", action="store_true", help="Print JSON.")
 
     return parser
 
@@ -522,6 +631,8 @@ def main(argv: list[str] | None = None) -> int:
             return validate_command(args, config_path)
         if args.command == "resolve":
             return resolve_platform(args, config_path)
+        if args.command == "user":
+            return configure_user(args, config_path)
 
         parser.error(f"Unknown command: {args.command}")
     except ConfigError as exc:

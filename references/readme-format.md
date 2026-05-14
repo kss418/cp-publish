@@ -52,13 +52,45 @@ Rules:
 - For AtCoder, use the estimated difficulty from Kenkoooo AtCoder Problems `problem-models.json` when available.
 - If rating is unknown, absent, or unavailable, write `$-$`.
 - Tags must follow `references/solution-tags.md`.
-- Put one blank line after the header and one blank line between problem entries.
-- Do not use tables, bullets, or extra prose.
+- Put one blank line after the header and one blank line between problem entries when there is no result table.
+
+## Result Table
+
+If the configured user participated in the contest and contest result data is available, include a result table before the solution entries:
+
+```markdown
+## Results
+
+| Problem | Wrong | AC Time |
+| --- | ---: | --- |
+| A | 0 | 00:07:00 |
+| B | 2 | - |
+
+## Solutions
+```
+
+Rules:
+
+- `Wrong`: number of wrong attempts before AC. Use `0` when there were no wrong attempts.
+- `AC Time`: contest-relative accepted time as `HH:MM:SS`.
+- Use `-` when the problem was not accepted.
+- Preserve and update existing result rows by `problem_id`.
+- If the user did not participate or result APIs are unavailable, omit the result table and keep the normal entry list.
 
 ## Codeforces Example
 
 ```markdown
 # https://codeforces.com/contest/2061
+
+## Results
+
+| Problem | Wrong | AC Time |
+| --- | ---: | --- |
+| A | 0 | 00:05:12 |
+| B | 1 | 00:18:44 |
+| C | 3 | - |
+
+## Solutions
 
 A / Rating : $800$ / Case_Work
 
@@ -76,6 +108,16 @@ E / Rating : $2000$ / Bruteforce, Sorting, Greedy, Bit_Mask
 ```markdown
 # https://atcoder.jp/contests/abc422
 
+## Results
+
+| Problem | Wrong | AC Time |
+| --- | ---: | --- |
+| A | 0 | 00:01:38 |
+| B | 1 | 00:13:20 |
+| C | 0 | - |
+
+## Solutions
+
 A / Rating : $-$ / Case_Work
 
 B / Rating : $450$ / Math, Greedy
@@ -92,6 +134,7 @@ If `README.md` exists:
 - Preserve the header if it already matches the contest URL.
 - Fix the header if the contest ID is clearly the same folder contest.
 - Update an existing line for the same `problem_id` instead of duplicating it.
+- Update an existing result table row for the same `problem_id` instead of duplicating it.
 - Insert new entries in natural Codeforces problem order when practical.
 - Preserve existing entries that are unrelated to the current publish operation.
 

@@ -9,9 +9,12 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 
 ENTRY_RE = re.compile(r"^(\S+)\s*/\s*Rating\s*:\s*(.*?)\s*/\s*(.+?)\s*$")
+RESULTS_HEADING = "## Results"
+SOLUTIONS_HEADING = "## Solutions"
 
 
 class ReadmeUpdateError(RuntimeError):
@@ -28,6 +31,19 @@ class Entry:
 
     def line(self) -> str:
         return f"{self.problem_id} / Rating : {self.rating} / {self.tags}"
+
+
+@dataclass
+class ResultRow:
+    problem_id: str
+    wrong_attempts: int
+    accepted_at_seconds: int | None
+
+    def line(self) -> str:
+        return (
+            f"| {self.problem_id} | {self.wrong_attempts} | "
+            f"{format_accepted_time(self.accepted_at_seconds)} |"
+        )
 
 
 def normalize_problem_id(value: str) -> str:
@@ -69,6 +85,59 @@ def normalize_tags(raw_tags: str | None, repeated_tags: list[str] | None) -> str
     return ", ".join(tags)
 
 
+def normalize_wrong_attempts(value: Any) -> int:
+    try:
+        attempts = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ReadmeUpdateError(f"wrong attempts must be an integer, got: {value!r}") from exc
+    if attempts < 0:
+        raise ReadmeUpdateError("wrong attempts must not be negative.")
+    return attempts
+
+
+def normalize_accepted_seconds(value: Any) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        cleaned = value.strip()
+        if not cleaned or cleaned in {"-", "null", "None"}:
+            return None
+        if ":" in cleaned:
+            parts = cleaned.split(":")
+            if len(parts) not in {2, 3}:
+                raise ReadmeUpdateError(f"accepted time must be seconds, MM:SS, HH:MM:SS, or '-', got: {value!r}")
+            try:
+                numbers = [int(part) for part in parts]
+            except ValueError as exc:
+                raise ReadmeUpdateError(f"accepted time contains a non-integer part: {value!r}") from exc
+            if len(numbers) == 2:
+                minutes, seconds = numbers
+                hours = 0
+            else:
+                hours, minutes, seconds = numbers
+            total = hours * 3600 + minutes * 60 + seconds
+            if total < 0:
+                raise ReadmeUpdateError("accepted time must not be negative.")
+            return total
+        value = cleaned
+
+    try:
+        seconds = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ReadmeUpdateError(f"accepted time must be seconds, MM:SS, HH:MM:SS, or '-', got: {value!r}") from exc
+    if seconds < 0:
+        raise ReadmeUpdateError("accepted time must not be negative.")
+    return seconds
+
+
+def format_accepted_time(seconds: int | None) -> str:
+    if seconds is None:
+        return "-"
+    hours, remainder = divmod(seconds, 3600)
+    minutes, second = divmod(remainder, 60)
+    return f"{hours:02d}:{minutes:02d}:{second:02d}"
+
+
 def parse_entry(line: str) -> Entry | None:
     match = ENTRY_RE.match(line)
     if not match:
@@ -78,6 +147,38 @@ def parse_entry(line: str) -> Entry | None:
         rating=normalize_rating(match.group(2)),
         tags=normalize_tags(match.group(3), None),
     )
+
+
+def parse_result_row(line: str) -> ResultRow | None:
+    stripped = line.strip()
+    if not stripped.startswith("|") or not stripped.endswith("|"):
+        return None
+
+    cells = [cell.strip() for cell in stripped.strip("|").split("|")]
+    if len(cells) != 3:
+        return None
+
+    first = cells[0].lower()
+    if first in {"problem", "---"}:
+        return None
+    if all(set(cell) <= {"-", ":", " "} for cell in cells):
+        return None
+
+    return ResultRow(
+        problem_id=normalize_problem_id(cells[0]),
+        wrong_attempts=normalize_wrong_attempts(cells[1]),
+        accepted_at_seconds=normalize_accepted_seconds(cells[2]),
+    )
+
+
+def is_known_result_table_markup(line: str) -> bool:
+    stripped = line.strip()
+    if not stripped.startswith("|") or not stripped.endswith("|"):
+        return False
+    cells = [cell.strip().lower() for cell in stripped.strip("|").split("|")]
+    if cells in (["problem", "wrong", "ac time"], ["problem", "wrong attempts", "accepted at"]):
+        return True
+    return all(cell and set(cell) <= {"-", ":", " "} for cell in cells)
 
 
 def problem_sort_key(problem_id: str) -> tuple[int, int, str]:
@@ -99,21 +200,31 @@ def problem_sort_key(problem_id: str) -> tuple[int, int, str]:
     return (3000, 0, problem_id)
 
 
-def read_existing(readme_path: Path) -> tuple[str | None, list[Entry], list[str]]:
+def read_existing(readme_path: Path) -> tuple[str | None, list[Entry], list[ResultRow], list[str]]:
     if not readme_path.exists():
-        return None, [], []
+        return None, [], [], []
 
     lines = readme_path.read_text(encoding="utf-8").splitlines()
     if not lines:
-        return None, [], []
+        return None, [], [], []
 
     header = lines[0].strip()
     entries: list[Entry] = []
+    result_rows: list[ResultRow] = []
     unknown_lines: list[str] = []
 
     for line in lines[1:]:
         stripped = line.strip()
         if not stripped:
+            continue
+        if stripped in {RESULTS_HEADING, SOLUTIONS_HEADING}:
+            continue
+        if stripped.startswith("|"):
+            result_row = parse_result_row(stripped)
+            if result_row is not None:
+                result_rows.append(result_row)
+            elif not is_known_result_table_markup(stripped):
+                unknown_lines.append(stripped)
             continue
 
         entry = parse_entry(stripped)
@@ -122,12 +233,29 @@ def read_existing(readme_path: Path) -> tuple[str | None, list[Entry], list[str]
         else:
             entries.append(entry)
 
-    return header, entries, unknown_lines
+    return header, entries, result_rows, unknown_lines
 
 
-def render_readme(header: str, entries: list[Entry]) -> str:
+def render_readme(header: str, entries: list[Entry], result_rows: list[ResultRow]) -> str:
     lines = [header, ""]
-    for index, entry in enumerate(sorted(entries, key=lambda item: problem_sort_key(item.problem_id))):
+
+    sorted_results = sorted(result_rows, key=lambda item: problem_sort_key(item.problem_id))
+    sorted_entries = sorted(entries, key=lambda item: problem_sort_key(item.problem_id))
+
+    if sorted_results:
+        lines.extend(
+            [
+                RESULTS_HEADING,
+                "",
+                "| Problem | Wrong | AC Time |",
+                "| --- | ---: | --- |",
+            ]
+        )
+        lines.extend(row.line() for row in sorted_results)
+        if sorted_entries:
+            lines.extend(["", SOLUTIONS_HEADING, ""])
+
+    for index, entry in enumerate(sorted_entries):
         if index:
             lines.append("")
         lines.append(entry.line())
@@ -153,6 +281,73 @@ def update_entries(entries: list[Entry], new_entry: Entry) -> tuple[list[Entry],
     return updated, action
 
 
+def update_result_rows(rows: list[ResultRow], new_rows: list[ResultRow]) -> list[ResultRow]:
+    by_problem = {row.problem_id: row for row in rows}
+    for row in new_rows:
+        by_problem[row.problem_id] = row
+    return list(by_problem.values())
+
+
+def parse_result_arg(raw: str) -> ResultRow:
+    parts = raw.split(":", 2)
+    if len(parts) != 3:
+        raise ReadmeUpdateError("--result must use PROBLEM_ID:WRONG_ATTEMPTS:ACCEPTED_SECONDS_OR_TIME")
+    return ResultRow(
+        problem_id=normalize_problem_id(parts[0]),
+        wrong_attempts=normalize_wrong_attempts(parts[1]),
+        accepted_at_seconds=normalize_accepted_seconds(parts[2]),
+    )
+
+
+def results_from_payload(payload: dict[str, Any]) -> list[ResultRow]:
+    if payload.get("participated") is False:
+        return []
+
+    problems = payload.get("problems")
+    if not isinstance(problems, list):
+        raise ReadmeUpdateError("results JSON must contain a problems list.")
+
+    result_rows: list[ResultRow] = []
+    for problem in problems:
+        if not isinstance(problem, dict):
+            continue
+        problem_id = problem.get("problem_id")
+        if not isinstance(problem_id, str):
+            continue
+        result_rows.append(
+            ResultRow(
+                problem_id=normalize_problem_id(problem_id),
+                wrong_attempts=normalize_wrong_attempts(problem.get("wrong_attempts", 0)),
+                accepted_at_seconds=normalize_accepted_seconds(problem.get("accepted_at_seconds")),
+            )
+        )
+    return result_rows
+
+
+def load_results_json(path: Path) -> list[ResultRow]:
+    if str(path) == "-":
+        text = sys.stdin.read()
+    else:
+        text = path.expanduser().read_text(encoding="utf-8")
+
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise ReadmeUpdateError(f"invalid results JSON: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise ReadmeUpdateError("results JSON must be an object.")
+    return results_from_payload(payload)
+
+
+def collect_result_rows(args: argparse.Namespace) -> list[ResultRow]:
+    rows: list[ResultRow] = []
+    if args.results_json:
+        rows.extend(load_results_json(args.results_json))
+    for raw in args.result or []:
+        rows.append(parse_result_arg(raw))
+    return rows
+
+
 def update_readme(args: argparse.Namespace) -> int:
     readme_path = args.readme
     if readme_path is None:
@@ -167,8 +362,9 @@ def update_readme(args: argparse.Namespace) -> int:
         rating=normalize_rating(args.rating),
         tags=normalize_tags(args.tags, args.tag),
     )
+    new_result_rows = collect_result_rows(args)
 
-    existing_header, entries, unknown_lines = read_existing(readme_path)
+    existing_header, entries, result_rows, unknown_lines = read_existing(readme_path)
     if existing_header and existing_header != expected_header:
         if not args.force_header:
             raise ReadmeUpdateError(
@@ -184,7 +380,8 @@ def update_readme(args: argparse.Namespace) -> int:
         )
 
     updated_entries, action = update_entries(entries, new_entry)
-    rendered = render_readme(expected_header, updated_entries)
+    updated_result_rows = update_result_rows(result_rows, new_result_rows)
+    rendered = render_readme(expected_header, updated_entries, updated_result_rows)
     old_text = readme_path.read_text(encoding="utf-8") if readme_path.exists() else ""
     changed = old_text != rendered
 
@@ -193,6 +390,15 @@ def update_readme(args: argparse.Namespace) -> int:
         "action": action if changed else "unchanged",
         "problem_id": new_entry.problem_id,
         "entry": new_entry.line(),
+        "result_rows": [
+            {
+                "problem_id": row.problem_id,
+                "wrong_attempts": row.wrong_attempts,
+                "accepted_at_seconds": row.accepted_at_seconds,
+                "accepted_at": format_accepted_time(row.accepted_at_seconds),
+            }
+            for row in sorted(updated_result_rows, key=lambda item: problem_sort_key(item.problem_id))
+        ],
         "changed": changed,
     }
 
@@ -233,6 +439,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--tags", help="Comma-separated README tags.")
     parser.add_argument("--tag", action="append", help="One README tag. Can be repeated.")
+    parser.add_argument(
+        "--results-json",
+        type=Path,
+        help="Normalized contest result JSON from atcoder_results.py or codeforces_results.py. Use '-' for stdin.",
+    )
+    parser.add_argument(
+        "--result",
+        action="append",
+        help="One result row as PROBLEM_ID:WRONG_ATTEMPTS:ACCEPTED_SECONDS_OR_TIME. Use '-' for unsolved AC time.",
+    )
     parser.add_argument(
         "--force-header",
         action="store_true",
