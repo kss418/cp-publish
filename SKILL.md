@@ -185,21 +185,27 @@ If a metadata fetch fails because network access is blocked by the sandbox, requ
 
 ## AtCoder Metadata
 
-Run `scripts/atcoder_metadata.py` whenever AtCoder contest lists, contest-problem mappings, or estimated problem ratings are needed for path placement or README updates. The script automatically uses a fresh-enough cache and fetches from Kenkoooo AtCoder Problems when the cache is missing or stale.
+Run `scripts/atcoder_metadata.py` whenever AtCoder contest lists, problem titles, contest-problem mappings, or estimated problem ratings are needed for path placement or README updates. The script automatically uses a fresh-enough cache and fetches from Kenkoooo AtCoder Problems when the cache is missing or stale.
 
 ```powershell
 python scripts/atcoder_metadata.py contests
+python scripts/atcoder_metadata.py problems
+python scripts/atcoder_metadata.py merged-problems
 python scripts/atcoder_metadata.py contest-problems
 python scripts/atcoder_metadata.py ratings
 python scripts/atcoder_metadata.py all
+python scripts/atcoder_metadata.py problem abc422_a
 python scripts/atcoder_metadata.py rating abc422_a
 ```
 
 ```sh
 python3 scripts/atcoder_metadata.py contests
+python3 scripts/atcoder_metadata.py problems
+python3 scripts/atcoder_metadata.py merged-problems
 python3 scripts/atcoder_metadata.py contest-problems
 python3 scripts/atcoder_metadata.py ratings
 python3 scripts/atcoder_metadata.py all
+python3 scripts/atcoder_metadata.py problem abc422_a
 python3 scripts/atcoder_metadata.py rating abc422_a
 ```
 
@@ -224,7 +230,21 @@ Before creating or updating AtCoder or Codeforces contest `README.md` files, loa
 - `references/readme-format.md`
 - `references/solution-tags.md`
 
-Use Codeforces metadata for Codeforces problem ratings when available. Use Kenkoooo estimated difficulty for AtCoder ratings when available. If rating metadata is missing, follow `references/readme-format.md` and write `$-$`. Infer README tags from the solution code using `references/solution-tags.md`. If tag inference is uncertain, ask the user before updating the README.
+Use Codeforces metadata for Codeforces problem ratings when available. Use Kenkoooo estimated difficulty for AtCoder ratings when available. If rating metadata is missing, follow `references/readme-format.md` and write `$-$`. Infer README tags from the solution code using `references/solution-tags.md`.
+
+Only load `references/solvedac-tag-map.json` when converting a solved.ac tag key or when the common tags in `references/solution-tags.md` do not cover the technique. If tag inference is uncertain, ask the user before updating the README.
+
+Use `scripts/update_readme.py` to create or update a contest README entry:
+
+```powershell
+python scripts/update_readme.py --contest-dir C:\path\to\contest --contest-url https://codeforces.com/contest/2061 --problem-id A --rating 800 --tags Case_Work
+python scripts/update_readme.py --contest-dir C:\path\to\contest --contest-url https://atcoder.jp/contests/abc422 --problem-id A --rating - --tags Case_Work
+```
+
+```sh
+python3 scripts/update_readme.py --contest-dir /path/to/contest --contest-url https://codeforces.com/contest/2061 --problem-id A --rating 800 --tags Case_Work
+python3 scripts/update_readme.py --contest-dir /path/to/contest --contest-url https://atcoder.jp/contests/abc422 --problem-id A --rating - --tags Case_Work
+```
 
 ## Publish Workflow
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "CP Publish"
+  short_description: "Publish CP solutions to GitHub"
+  default_prompt: "Use $cp-publish to publish my latest AtCoder or Codeforces solution to GitHub."

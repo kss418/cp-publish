@@ -1,17 +1,19 @@
 # Solution Tags
 
-Use these tags for contest README entries. Infer tags from the submitted solution code, not only from the problem statement or official Codeforces tags.
+Use these tags for contest README entries. Infer tags from the submitted solution code, not only from the problem statement, Codeforces tags, or solved.ac tags.
+
+The broader solved.ac key mapping lives in `references/solvedac-tag-map.json`. Load that JSON only when converting a solved.ac tag key or when the common tags below do not cover the technique.
 
 ## Format
 
 - Use English tag names.
 - Use `Title_Case` with underscores for multi-word tags.
-- Keep common acronyms uppercase, for example `DP`, `BFS`, `DFS`, `DSU`, `LCA`, `MST`, and `SCC`.
+- Keep common acronyms uppercase, for example `DP`, `BFS`, `DFS`, `DSU`, `LCA`, `MST`, `SCC`, and `FFT`.
 - Separate multiple tags with `, `.
 - Prefer 1 to 5 tags per solution.
 - Order tags by importance: main technique first, supporting techniques after.
 
-Example:
+Examples:
 
 ```text
 Math, Greedy
@@ -21,7 +23,9 @@ Bruteforce, Sorting, Greedy, Bit_Mask
 
 If the code does not provide enough evidence to infer tags confidently, ask the user before updating the README.
 
-## Canonical Tags
+## Common Tags
+
+Prefer broad tags unless a specific tag materially explains the implementation.
 
 General:
 
@@ -33,11 +37,15 @@ General:
 - `Bruteforce`
 - `Greedy`
 - `Sorting`
+- `Sweeping`
 - `Binary_Search`
+- `Parametric_Search`
 - `Two_Pointers`
 - `Sliding_Window`
 - `Prefix_Sum`
 - `Difference_Array`
+- `Coordinate_Compression`
+- `Offline_Queries`
 
 Math:
 
@@ -45,18 +53,26 @@ Math:
 - `Number_Theory`
 - `GCD`
 - `Sieve`
-- `Prime`
+- `Prime_Factorization`
+- `Modular_Inverse`
 - `Combinatorics`
 - `Probability`
 - `Game_Theory`
 - `Geometry`
+- `Linear_Algebra`
+- `FFT`
 
 Dynamic programming:
 
 - `DP`
+- `Tree_DP`
+- `Rerooting`
 - `Bit_Mask`
 - `Bitset`
 - `Knapsack`
+- `Digit_DP`
+- `Deque_DP`
+- `Divide_And_Conquer_Optimization`
 
 Data structures:
 
@@ -66,26 +82,40 @@ Data structures:
 - `Deque`
 - `Priority_Queue`
 - `Set_Map`
+- `Hash_Set`
 - `Multiset`
 - `Fenwick_Tree`
 - `Segment_Tree`
 - `Lazy_Propagation`
 - `Sparse_Table`
+- `Sqrt_Decomposition`
+- `Mo`
 
 Graphs and trees:
 
 - `Graph`
 - `Tree`
+- `Graph_Traversal`
 - `DFS`
 - `BFS`
+- `0_1_BFS`
 - `Dijkstra`
 - `Floyd_Warshall`
+- `Shortest_Path`
 - `DSU`
 - `MST`
 - `Topological_Sort`
+- `DAG`
 - `SCC`
+- `BCC`
 - `LCA`
 - `Euler_Tour`
+- `Bipartite_Graph`
+- `Bipartite_Matching`
+- `Max_Flow`
+- `Min_Cost_Max_Flow`
+- `HLD`
+- `Centroid_Decomposition`
 
 Strings:
 
@@ -95,6 +125,31 @@ Strings:
 - `KMP`
 - `Z_Function`
 - `Manacher`
+- `Aho_Corasick`
+- `Suffix_Array`
+
+## solved.ac Mapping
+
+Use `references/solvedac-tag-map.json` for the full solved.ac key-to-README tag mapping.
+
+Common examples:
+
+```text
+dp -> DP
+bruteforcing -> Bruteforce
+ad_hoc -> Ad_Hoc
+case_work -> Case_Work
+bitmask -> Bit_Mask
+prefix_sum -> Prefix_Sum
+binary_search -> Binary_Search
+disjoint_set -> DSU
+segtree -> Segment_Tree
+lazyprop -> Lazy_Propagation
+mcmf -> Min_Cost_Max_Flow
+aho_corasick -> Aho_Corasick
+```
+
+For solved.ac-style keys not listed in the JSON, normalize the key by replacing `_` with spaces and converting to `Title_Case`, while preserving common acronyms.
 
 ## Inference Cues
 
