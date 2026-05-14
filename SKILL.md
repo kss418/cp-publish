@@ -163,12 +163,75 @@ Use the resolved `repo_path` and `base_dir` as the only target destination for t
 
 If the detected platform has no configured route, stop and ask the user to add that platform route. Do not fall back to another platform's repository.
 
+## Codeforces Metadata
+
+Run `scripts/codeforces_metadata.py` whenever Codeforces contest names, contest kinds, problem names, or problem ratings are needed for path placement or README updates. The script automatically uses a fresh-enough cache and fetches from the Codeforces API when the cache is missing or stale.
+
+```powershell
+python scripts/codeforces_metadata.py contests
+python scripts/codeforces_metadata.py problems
+python scripts/codeforces_metadata.py all
+```
+
+```sh
+python3 scripts/codeforces_metadata.py contests
+python3 scripts/codeforces_metadata.py problems
+python3 scripts/codeforces_metadata.py all
+```
+
+Use `--refresh` only when the user explicitly requests fresh metadata.
+
+If a metadata fetch fails because network access is blocked by the sandbox, request approval to rerun the same metadata command with network access. If the user does not approve or the API remains unavailable, continue only when the available local evidence is sufficient; otherwise ask the user to confirm the missing contest/problem metadata.
+
+## AtCoder Metadata
+
+Run `scripts/atcoder_metadata.py` whenever AtCoder contest lists, contest-problem mappings, or estimated problem ratings are needed for path placement or README updates. The script automatically uses a fresh-enough cache and fetches from Kenkoooo AtCoder Problems when the cache is missing or stale.
+
+```powershell
+python scripts/atcoder_metadata.py contests
+python scripts/atcoder_metadata.py contest-problems
+python scripts/atcoder_metadata.py ratings
+python scripts/atcoder_metadata.py all
+python scripts/atcoder_metadata.py rating abc422_a
+```
+
+```sh
+python3 scripts/atcoder_metadata.py contests
+python3 scripts/atcoder_metadata.py contest-problems
+python3 scripts/atcoder_metadata.py ratings
+python3 scripts/atcoder_metadata.py all
+python3 scripts/atcoder_metadata.py rating abc422_a
+```
+
+Use Kenkoooo estimated difficulty as the AtCoder README rating when available. If the estimated difficulty is missing or unknown, write `$-$` for the rating. Use `--refresh` only when the user explicitly requests fresh metadata.
+
+If a metadata fetch fails because network access is blocked by the sandbox, request approval to rerun the same metadata command with network access. If the user does not approve or the API remains unavailable, continue only when the available local evidence is sufficient; otherwise ask the user to confirm the missing contest/problem metadata.
+
+## File Placement Rules
+
+Before moving or copying a solution, load `references/path-rules.md`.
+
+Use the configured route from `configure_repos.py resolve <platform>` as the root destination. Every final path must be inside the resolved `target_base`.
+
+Apply `references/path-rules.md` to determine the path or paths below `target_base`. If the rule cannot determine the target path set, or if any target path already exists, ask the user before modifying files.
+
+For Codeforces combined Div. 1 + Div. 2 problems, `references/path-rules.md` may require multiple target paths. Copy the same solution to each target path and commit all of them together.
+
+## Contest README Updates
+
+Before creating or updating AtCoder or Codeforces contest `README.md` files, load:
+
+- `references/readme-format.md`
+- `references/solution-tags.md`
+
+Use Codeforces metadata for Codeforces problem ratings when available. Use Kenkoooo estimated difficulty for AtCoder ratings when available. If rating metadata is missing, follow `references/readme-format.md` and write `$-$`. Infer README tags from the solution code using `references/solution-tags.md`. If tag inference is uncertain, ask the user before updating the README.
+
 ## Publish Workflow
 
 1. Inspect the working tree of the configured target repositories.
 2. Validate repository routing config.
 3. Identify the candidate solution file from the user prompt, recent changes, or current directory.
-4. Detect platform, contest ID, problem ID, language, and route-based target path.
+4. Detect platform, contest ID, problem ID, and language.
 5. Prefer detection signals in this order:
    - Explicit problem URL in source comments.
    - Structured metadata comments.
@@ -176,11 +239,13 @@ If the detected platform has no configured route, stop and ask the user to add t
    - Filename pattern.
    - User prompt.
 6. If confidence is low or multiple problems are plausible, ask the user for confirmation before modifying files.
-7. Move or copy the solution into the resolved repository and base directory.
-8. Update README, index, or problem list files when the repository uses them.
-9. Run lightweight validation for the solution language when practical.
-10. Commit only the relevant solution and index changes.
-11. Push with `git`/`gh` without force-pushing.
+7. Resolve the configured route for the detected platform.
+8. Load `references/path-rules.md` and determine the final target path or paths under the resolved `target_base`.
+9. Move or copy the solution into the resolved repository and base directory. For multiple Codeforces targets, copy to every target.
+10. Load `references/readme-format.md` and `references/solution-tags.md`, then update the contest `README.md`. Update other README, index, or problem list files when the repository uses them.
+11. Run lightweight validation for the solution language when practical.
+12. Commit only the relevant solution and index changes.
+13. Push with `git`/`gh` without force-pushing.
 
 ## GitHub Helpers
 
