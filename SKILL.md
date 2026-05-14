@@ -246,6 +246,42 @@ python3 scripts/update_readme.py --contest-dir /path/to/contest --contest-url ht
 python3 scripts/update_readme.py --contest-dir /path/to/contest --contest-url https://atcoder.jp/contests/abc422 --problem-id A --rating - --tags Case_Work
 ```
 
+## Publish Plan
+
+Before moving files, updating README files, committing, or pushing, build a dry-run publish plan with `scripts/plan_publish.py` whenever a candidate source file is known.
+
+```powershell
+python scripts/plan_publish.py C:\path\to\solution.cpp --tags DP,Greedy
+```
+
+```sh
+python3 scripts/plan_publish.py /path/to/solution.cpp --tags DP,Greedy
+```
+
+The script combines solution detection, configured repository routing, path rules, and platform metadata. It prints JSON shaped like:
+
+```json
+{
+  "source": "...",
+  "targets": ["..."],
+  "readme_updates": [
+    {
+      "readme": "...",
+      "contest_url": "...",
+      "problem_id": "...",
+      "rating": "$-$",
+      "tags": "..."
+    }
+  ],
+  "commit_message": "...",
+  "needs_confirmation": false
+}
+```
+
+If `needs_confirmation` is `true`, stop and ask the user to confirm the ambiguous or risky parts before modifying files. Common confirmation triggers include weak detection evidence, missing README tags, missing AtCoder problem title, unknown Codeforces contest kind, unknown source extension, or an existing target file.
+
+When network metadata is unavailable because sandbox access is blocked, request approval to rerun the same planning command with network access. If metadata is still unavailable, continue only when the user confirms the missing contest/problem details.
+
 ## Publish Workflow
 
 1. Inspect the working tree of the configured target repositories.
@@ -260,12 +296,14 @@ python3 scripts/update_readme.py --contest-dir /path/to/contest --contest-url ht
    - User prompt.
 6. If confidence is low or multiple problems are plausible, ask the user for confirmation before modifying files.
 7. Resolve the configured route for the detected platform.
-8. Load `references/path-rules.md` and determine the final target path or paths under the resolved `target_base`.
-9. Move or copy the solution into the resolved repository and base directory. For multiple Codeforces targets, copy to every target.
-10. Load `references/readme-format.md` and `references/solution-tags.md`, then update the contest `README.md`. Update other README, index, or problem list files when the repository uses them.
-11. Run lightweight validation for the solution language when practical.
-12. Commit only the relevant solution and index changes.
-13. Push with `git`/`gh` without force-pushing.
+8. Run `scripts/plan_publish.py` for the candidate source and inspect the JSON plan.
+9. If `needs_confirmation` is `true`, ask the user to confirm before modifying files.
+10. Load `references/path-rules.md` and use the planned target path or paths under the resolved `target_base`.
+11. Move or copy the solution into the resolved repository and base directory. For multiple Codeforces targets, copy to every target.
+12. Load `references/readme-format.md` and `references/solution-tags.md`, then update the contest `README.md`. Update other README, index, or problem list files when the repository uses them.
+13. Run lightweight validation for the solution language when practical.
+14. Commit only the relevant solution and index changes.
+15. Push with `git`/`gh` without force-pushing.
 
 ## GitHub Helpers
 
