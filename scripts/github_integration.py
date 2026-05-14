@@ -8,9 +8,12 @@ import os
 import shutil
 import subprocess
 import sys
+import webbrowser
 from pathlib import Path
 
 from check_dependencies import install_command
+
+GITHUB_DEVICE_URL = "https://github.com/login/device"
 
 
 class CommandError(RuntimeError):
@@ -91,9 +94,23 @@ def gh_auth_status() -> subprocess.CompletedProcess[str]:
     return run(["gh", "auth", "status"], check=False)
 
 
-def gh_auth_login_web() -> None:
+def open_browser_url(url: str) -> bool:
+    try:
+        return webbrowser.open(url, new=2)
+    except Exception as exc:
+        print(f"Could not open browser automatically: {exc}", file=sys.stderr)
+    return False
+
+
+def gh_auth_login_web(*, open_browser: bool) -> None:
     require_tool("gh")
-    print("Opening GitHub browser login...")
+    if open_browser:
+        print(f"Opening GitHub browser login: {GITHUB_DEVICE_URL}")
+        if not open_browser_url(GITHUB_DEVICE_URL):
+            print(f"Open this URL manually if no browser appears: {GITHUB_DEVICE_URL}", file=sys.stderr)
+    else:
+        print("Starting GitHub browser login...")
+
     run(
         ["gh", "auth", "login", "--web", "--git-protocol", "https"],
         check=True,
@@ -102,7 +119,7 @@ def gh_auth_login_web() -> None:
     )
 
 
-def ensure_auth(*, login: bool, setup_git: bool) -> None:
+def ensure_auth(*, login: bool, setup_git: bool, open_browser: bool = True) -> None:
     status = gh_auth_status()
     if status.returncode != 0:
         if not login:
@@ -110,7 +127,7 @@ def ensure_auth(*, login: bool, setup_git: bool) -> None:
                 "GitHub CLI is not authenticated. Run this command again with "
                 "`auth --login`, or run `gh auth login --web --git-protocol https` yourself."
             )
-        gh_auth_login_web()
+        gh_auth_login_web(open_browser=open_browser)
 
     status = gh_auth_status()
     if status.returncode != 0:
@@ -206,6 +223,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run browser-based `gh auth login --web --git-protocol https` when not authenticated.",
     )
     auth_parser.add_argument(
+        "--no-open-browser",
+        action="store_true",
+        help="Do not ask Codex/Python to open the GitHub login page before running gh.",
+    )
+    auth_parser.add_argument(
         "--no-setup-git",
         action="store_true",
         help="Skip `gh auth setup-git` after authentication succeeds.",
@@ -235,7 +257,11 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "status":
             print_status(root)
         elif args.command == "auth":
-            ensure_auth(login=args.login, setup_git=not args.no_setup_git)
+            ensure_auth(
+                login=args.login,
+                setup_git=not args.no_setup_git,
+                open_browser=not args.no_open_browser,
+            )
         elif args.command == "commit":
             commit_paths(root, args.paths, args.message)
         elif args.command == "push":

@@ -106,7 +106,7 @@ python scripts/github_integration.py auth --login
 python3 scripts/github_integration.py auth --login
 ```
 
-`auth --login` starts a browser-based GitHub CLI login and automatically sends the initial Enter key that `gh auth login --web` normally waits for, so the browser should open without requiring the user to press Enter in the terminal. If the browser cannot be opened by the OS, follow the URL/code printed by `gh`.
+`auth --login` asks Codex/Python to open `https://github.com/login/device`, then starts a browser-based GitHub CLI login and automatically sends the initial Enter key that `gh auth login --web` normally waits for. If the browser cannot be opened by the OS, follow the URL/code printed by `gh`. Use `--no-open-browser` only in a headless environment.
 
 Never ask for or store GitHub tokens, passwords, cookies, or credentials in project files, logs, commits, or skill resources.
 
