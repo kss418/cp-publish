@@ -33,22 +33,48 @@ Require these dependencies:
 - `gh`: check GitHub authentication and configure git credentials.
 - `python`: run the helper scripts in this skill.
 
-If any required dependency is missing, stop the publish workflow before modifying files, committing, or pushing. Read `install_command` or `install_commands` from `scripts/check_dependencies.py`, tell the user which dependency is missing, and ask for approval to install it with the platform-specific command or command sequence.
+If any required dependency is missing, stop the publish workflow before modifying files, committing, or pushing. Use `scripts/install_dependencies.py --dry-run` to show the missing dependencies and the exact install command or command sequence.
 
-The dependency checker chooses install commands for the current OS and available package manager:
+The dependency installer chooses commands for the current OS and available package manager:
 
 - Windows: `winget`, `choco`, or `scoop`.
 - macOS: `brew`, MacPorts, or `conda`.
 - Linux: Homebrew, `apt`, `dnf`, `yum`, `zypper`, `pacman`, `apk`, or `conda`.
 
-Ask with the exact command or command sequence:
+Preview the install plan with:
+
+```powershell
+python scripts/install_dependencies.py --dry-run
+python scripts/install_dependencies.py --only gh --dry-run
+```
+
+```sh
+python3 scripts/install_dependencies.py --dry-run
+python3 scripts/install_dependencies.py --only gh --dry-run
+```
+
+Ask with the exact command or command sequence from the dry-run output:
 
 ```text
 GitHub CLI (`gh`) is required for publishing. May I install it with the command(s) below?
-<install command(s) from scripts/check_dependencies.py>
+<install command(s) from scripts/install_dependencies.py --dry-run>
 ```
 
-Only after the user approves, run the command or command sequence in the native shell. After installation, rerun the dependency check with the same Python executable:
+Only after the user approves, run the installer. In Codex-run workflows, use `--yes` only after explicit approval:
+
+```powershell
+python scripts/install_dependencies.py --yes
+python scripts/install_dependencies.py --only gh --yes
+```
+
+```sh
+python3 scripts/install_dependencies.py --yes
+python3 scripts/install_dependencies.py --only gh --yes
+```
+
+When a person runs the installer directly without `--yes`, it prompts before installing each missing dependency.
+
+After installation, rerun the dependency check with the same Python executable:
 
 ```powershell
 python scripts/check_dependencies.py
