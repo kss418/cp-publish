@@ -96,7 +96,7 @@ For Educational contests, use the same bucket structure under `Educational`:
 <target_base>/Educational/<hundreds_bucket>/<tens_bucket>/<contest_id>/<problem_id>.<ext>
 ```
 
-For Global rounds, Hello/Good Bye rounds, ICPC-style rounds, and company-sponsored/special named contests, use the same bucket structure under `Others`:
+For non-regular named contests, use the same bucket structure under `Others`:
 
 ```text
 <target_base>/Others/<hundreds_bucket>/<tens_bucket>/<contest_id>/<problem_id>.<ext>
@@ -108,34 +108,49 @@ Normalize:
 - `contest_kind`: one of regular numeric contest, Educational contest, or Others. Ignore Div. 1, Div. 2, and Div. 3 labels for path placement.
 - `hundreds_bucket`: `(contest_id // 100) * 100`, for example `1900 -> 1900` and `1917 -> 1900`.
 - `tens_bucket`: `(contest_id // 10) * 10`, for example `1900 -> 1900` and `1917 -> 1910`.
-- `problem_id`: lowercase problem index, preserving multi-part indices such as `a1`, `b2`, or `c`.
+- `problem_id`: uppercase problem index, preserving multi-part indices such as `A1`, `B2`, or `C`.
 - `ext`: normalized language extension.
+
+Classify by the Codeforces contest `name` from `contest.list`; do not classify by the API `type` alone. Many official Div. 3, Div. 4, and Educational rounds have API `type` values such as `ICPC`.
+
+Classify as regular numeric contests when the contest name contains an official `Codeforces Round` token, including:
+
+- `Codeforces Round 1098 (Div. 2)`.
+- `Codeforces Round 1097 (Div. 1, Based on Zhili Cup 2026)`.
+- `Spectral::Cup 2026 Round 1 (Codeforces Round 1094, Div. 1 + Div. 2)`.
+- `CodeCraft-22 and Codeforces Round 795 (Div. 2)`.
+
+In other words, company, event, or sponsor text does not make a contest `Others` when the title still contains `Codeforces Round` as an official round token.
+
+Classify as `Educational` when the contest name contains `Educational Codeforces Round`.
 
 Classify these as `Others`:
 
-- Global rounds.
+- Codeforces Global rounds.
 - Hello and Good Bye rounds.
-- ICPC, ICPC-style, and regional contest rounds.
-- Company-sponsored or special named rounds, including rounds named after a company, product, or event sponsor.
+- ICPC, IOI, regional, online mirror, and team-preferred contests.
+- Kotlin Heroes, April Fools, Testing Round, VK Cup, Technocup, Russian Code Cup, and similar special series.
+- Company, product, sponsor, or event named contests that do not contain the official `Codeforces Round` token, such as `CodeTON Round`, `Pinely Round`, `EPIC Institute of Technology Round August 2024`, `Deltix Round`, and `Harbour.Space Scholarship Contest`.
 
 Examples:
 
 | Signal | Target path below `target_base` |
 | --- | --- |
-| `https://codeforces.com/problemset/problem/1900/A` | `1900/1900/1900/a.cpp` |
-| `https://codeforces.com/contest/1917/problem/B` | `1900/1910/1917/b.cpp` |
-| `1900A.cpp` | `1900/1900/1900/a.cpp` |
-| `codeforces/1917/b.py` | `1900/1910/1917/b.py` |
-| `cf_1917_a1.rs` | `1900/1910/1917/a1.rs` |
-| Educational contest `1900`, problem `A` | `Educational/1900/1900/1900/a.cpp` |
-| Global Round contest `1917`, problem `B` | `Others/1900/1910/1917/b.cpp` |
-| Hello contest `1900`, problem `A` | `Others/1900/1900/1900/a.cpp` |
-| ICPC-style contest `1917`, problem `C` | `Others/1900/1910/1917/c.cpp` |
-| Sponsored contest `1917`, problem `D` | `Others/1900/1910/1917/d.cpp` |
+| `https://codeforces.com/problemset/problem/1900/A` | `1900/1900/1900/A.cpp` |
+| `https://codeforces.com/contest/1917/problem/B` | `1900/1910/1917/B.cpp` |
+| `1900A.cpp` | `1900/1900/1900/A.cpp` |
+| `codeforces/1917/b.py` | `1900/1910/1917/B.py` |
+| `cf_1917_a1.rs` | `1900/1910/1917/A1.rs` |
+| Educational contest `1900`, problem `A` | `Educational/1900/1900/1900/A.cpp` |
+| `Spectral::Cup 2026 Round 1 (Codeforces Round 1094, Div. 1 + Div. 2)`, contest `2222`, problem `A` | `2200/2220/2222/A.cpp` |
+| `CodeTON Round 9`, contest `2039`, problem `B` | `Others/2000/2030/2039/B.cpp` |
+| Global Round contest `1917`, problem `B` | `Others/1900/1910/1917/B.cpp` |
+| Hello contest `1900`, problem `A` | `Others/1900/1900/1900/A.cpp` |
+| ICPC-style contest `1917`, problem `C` | `Others/1900/1910/1917/C.cpp` |
 
 If the contest looks Educational but the numeric contest ID is unclear, ask the user before publishing.
 
-If the contest looks like Global, Hello, Good Bye, ICPC, or sponsored/special but the numeric contest ID is unclear, ask the user before publishing.
+If the contest looks like Global, Hello, Good Bye, ICPC, IOI, online mirror, or special named contest but the numeric contest ID is unclear, ask the user before publishing.
 
 If the contest kind is unclear, ask the user whether to place it as regular numeric, `Educational`, or `Others`.
 
@@ -161,7 +176,7 @@ Example:
 
 | Shared problem mapping | Target paths below `target_base` |
 | --- | --- |
-| Div. 2 `1917A` == Div. 1 `1916C` | `1900/1910/1917/a.cpp` and `1900/1910/1916/c.cpp` |
+| Div. 2 `1917A` == Div. 1 `1916C` | `1900/1910/1917/A.cpp` and `1900/1910/1916/C.cpp` |
 
 For multiple targets, copy the source solution to each target path. Do not move the source into only one target when more than one target is required.
 

@@ -573,6 +573,10 @@ def find_codeforces_contest(contest_id: str, metadata: dict[str, Any]) -> dict[s
     return None
 
 
+def has_official_codeforces_round_token(title: str) -> bool:
+    return re.search(r"\bcodeforces\s+(?:beta\s+)?round\b", title, re.IGNORECASE) is not None
+
+
 def classify_codeforces_contest(
     contest_id: str,
     explicit_kind: str | None,
@@ -593,37 +597,16 @@ def classify_codeforces_contest(
         return None, None
 
     lowered = title.lower()
-    if "educational" in lowered:
+    if "educational codeforces round" in lowered:
         return "Educational", title
 
-    others_markers = [
-        "global round",
-        "hello ",
-        "good bye",
-        "goodbye",
-        "icpc",
-        "regional",
-        "regionals",
-        "kotlin heroes",
-        "april fools",
-        "vk cup",
-        "mail.ru",
-        "yandex",
-        "ton",
-        "huawei",
-        "technocup",
-        "abbyy",
-        "lyft",
-        "microsoft",
-    ]
-    if any(marker in lowered for marker in others_markers):
+    if "codeforces global round" in lowered:
         return "Others", title
 
-    if lowered.startswith("codeforces round") or lowered.startswith("codeforces beta round"):
+    if has_official_codeforces_round_token(title):
         return "regular", title
 
-    warnings.append(f"Codeforces contest kind is ambiguous from title: {title}")
-    return None, title
+    return "Others", title
 
 
 def build_codeforces_target(route: Route, target: CodeforcesTarget, ext: str) -> Path:
