@@ -25,12 +25,14 @@ def run(
     cwd: Path | None = None,
     check: bool = True,
     capture: bool = True,
+    input_text: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         args,
         cwd=str(cwd) if cwd else None,
         check=check,
         text=True,
+        input=input_text,
         stdout=subprocess.PIPE if capture else None,
         stderr=subprocess.PIPE if capture else None,
     )
@@ -89,15 +91,26 @@ def gh_auth_status() -> subprocess.CompletedProcess[str]:
     return run(["gh", "auth", "status"], check=False)
 
 
+def gh_auth_login_web() -> None:
+    require_tool("gh")
+    print("Opening GitHub browser login...")
+    run(
+        ["gh", "auth", "login", "--web", "--git-protocol", "https"],
+        check=True,
+        capture=False,
+        input_text="\n",
+    )
+
+
 def ensure_auth(*, login: bool, setup_git: bool) -> None:
     status = gh_auth_status()
     if status.returncode != 0:
         if not login:
             raise CommandError(
                 "GitHub CLI is not authenticated. Run this command again with "
-                "`auth --login`, or run `gh auth login --web` yourself."
+                "`auth --login`, or run `gh auth login --web --git-protocol https` yourself."
             )
-        run(["gh", "auth", "login", "--web"], check=True, capture=False)
+        gh_auth_login_web()
 
     status = gh_auth_status()
     if status.returncode != 0:
@@ -190,7 +203,7 @@ def build_parser() -> argparse.ArgumentParser:
     auth_parser.add_argument(
         "--login",
         action="store_true",
-        help="Run `gh auth login --web` when not authenticated.",
+        help="Run browser-based `gh auth login --web --git-protocol https` when not authenticated.",
     )
     auth_parser.add_argument(
         "--no-setup-git",
