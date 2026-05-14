@@ -148,6 +148,7 @@ Examples:
 | Educational contest ID `2225`, `Educational Codeforces Round 189`, problem `A` | `Educational/100/180/189/A.cpp` |
 | `CodeTON Round 9`, contest ID `2039`, problem `B` | `Others/CodeTON_Round/0/0/9/B.cpp` |
 | `Codeforces Global Round 11`, problem `C` | `Others/Global_Round/0/10/11/C.cpp` |
+| `Hello 2026`, problem `A` | `Others/Hello/0/20/26/A.cpp` |
 | `Good Bye 2022`, problem `A` | `Others/Good_Bye/0/20/22/A.cpp` |
 | `April Fools Contest 3`, problem `A` | `Others/April_Fools/0/0/3/A.cpp` |
 

@@ -57,6 +57,13 @@ Others/Good_Bye/0/20/22/A.cpp
 Others/April_Fools/0/0/3/A.cpp
 ```
 
+Hello와 Good Bye는 contest 이름에 연도가 들어가므로, 경로에는 연도의 마지막 두 자리를 씁니다.
+
+```text
+Hello 2026 -> Others/Hello/0/20/26/A.cpp
+Good Bye 2022 -> Others/Good_Bye/0/20/22/A.cpp
+```
+
 contest 그룹이나 라운드 번호를 안정적으로 뽑을 수 없으면 Codex가 사용자에게 `contest_group` 또는 `round_number`를 다시 물어봅니다.
 
 자세한 규칙은 `references/path-rules.md`를 봅니다.
