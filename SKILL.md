@@ -117,6 +117,7 @@ Ask before modifying files when any of these are true:
 - Detection sources conflict, for example source URL and filename identify different problems.
 - README tags are missing or uncertain.
 - The source extension is unknown.
+- A Java source declares a public class that does not match the planned renamed target filename.
 - A target path already exists.
 - Metadata or result fetches fail and local evidence is insufficient.
 - A Codeforces combined Div. 1 + Div. 2 paired target is plausible but unclear.

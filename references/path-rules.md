@@ -35,6 +35,8 @@ Preserve the source language by extension. Normalize common extensions as follow
 
 If the extension is unknown, keep the original extension and ask for confirmation before publishing.
 
+Java remains supported, but it uses the same problem-title filename pattern as other languages, for example `A_Title.java`. Java solutions with `public class Main` may not compile after renaming because a public class name must match the filename. Use non-public `class Main`, or publish Java solutions manually.
+
 ## AtCoder
 
 For numeric AtCoder contest series, use:

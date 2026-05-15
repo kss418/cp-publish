@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -38,6 +39,9 @@ from .paths import (
     resolve_codeforces_round_number,
 )
 from .tags import collect_tags
+
+
+JAVA_PUBLIC_CLASS_RE = re.compile(r"\bpublic\s+class\s+([A-Za-z_$][A-Za-z0-9_$]*)\b")
 
 
 def script_path(script_name: str) -> Path:
@@ -282,6 +286,32 @@ def check_target_conflicts(targets: list[str], warnings: list[str]) -> bool:
     return needs_confirmation
 
 
+def java_public_class_rename_warning(source: Path, targets: list[str]) -> str | None:
+    if normalize_ext(source) != ".java":
+        return None
+    try:
+        text = source.read_text(encoding="utf-8", errors="replace")
+    except OSError as exc:
+        return f"Java source could not be inspected for public class rename risk: {exc}"
+
+    public_classes = sorted(set(JAVA_PUBLIC_CLASS_RE.findall(text)))
+    if not public_classes:
+        return None
+
+    target_stems = {Path(target).stem for target in targets}
+    mismatched = [name for name in public_classes if name not in target_stems]
+    if not mismatched:
+        return None
+
+    classes = ", ".join(mismatched)
+    stems = ", ".join(sorted(target_stems))
+    return (
+        f"Java source declares public class {classes}, but planned target filename stem(s) are {stems}. "
+        "Java solutions with `public class Main` may not compile after renaming. "
+        "Use non-public `class Main`, or publish Java solutions manually."
+    )
+
+
 def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     source = Path(args.source).expanduser().resolve()
     warnings: list[str] = []
@@ -323,8 +353,14 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     else:
         platform_plan = plan_codeforces(source, detection, route, args, warnings)
 
+    java_warning = java_public_class_rename_warning(source, platform_plan["targets"])
+    if java_warning:
+        warnings.append(java_warning)
+
     needs_confirmation = False
     if unknown_extension:
+        needs_confirmation = True
+    if java_warning:
         needs_confirmation = True
     if source_is_weak(source, detection):
         warnings.append("Problem identity is based on weak evidence; confirm before publishing.")
