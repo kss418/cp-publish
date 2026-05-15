@@ -2,6 +2,26 @@
 
 This reference contains detailed command examples for the `cp-publish` skill. Keep `SKILL.md` focused on mandatory workflow and safety rules; load this file when exact command syntax is needed.
 
+## Command Working Directory
+
+For commands that write files, update a target Git repository, or use GitHub credentials, run from the resolved target repository or another known writable workspace. Treat the skill directory as read-only runtime code and call bundled scripts with an absolute `skill_root` path when the working directory is not the skill root.
+
+Use repository-local temporary plan files, then remove them before committing:
+
+```powershell
+$skillRoot = "C:\path\to\cp-publish-skill"
+$repo = "C:\path\to\resolved\repo"
+Set-Location $repo
+```
+
+```sh
+skill_root=/path/to/cp-publish-skill
+repo=/path/to/resolved/repo
+cd "$repo"
+```
+
+If a command needs to write `.git/index`, push, access the `gh` keyring, write outside the active writable root, or access metadata/results over the network, request sandbox escalation on the first attempt.
+
 ## Dependency And Auth
 
 Check required tools before modifying files:
@@ -180,25 +200,31 @@ When result JSON is available, pass it to `scripts/cp_publish/update_readme.py -
 Build a plan before changing files:
 
 ```powershell
-python scripts/cp_publish/plan_publish.py C:\path\to\solution.cpp --tags DP,Greedy
+python "$skillRoot\scripts\cp_publish\plan_publish.py" C:\path\to\solution.cpp --tags DP,Greedy
 ```
 
 ```sh
-python3 scripts/cp_publish/plan_publish.py /path/to/solution.cpp --tags DP,Greedy
+python3 "$skill_root/scripts/cp_publish/plan_publish.py" /path/to/solution.cpp --tags DP,Greedy
 ```
 
 Apply confirmed plans through `scripts/cp_publish/apply_plan.py`:
 
 ```powershell
-python scripts/cp_publish/plan_publish.py C:\path\to\solution.cpp --tags DP,Greedy > C:\path\to\cp-plan.json
-python scripts/cp_publish/apply_plan.py --plan C:\path\to\cp-plan.json --copy --dry-run
-python scripts/cp_publish/apply_plan.py --plan C:\path\to\cp-plan.json --copy --with-results
+$planDir = Join-Path $repo ".cp-publish-plans"
+New-Item -ItemType Directory -Force -Path $planDir | Out-Null
+python "$skillRoot\scripts\cp_publish\plan_publish.py" C:\path\to\solution.cpp --tags DP,Greedy > "$planDir\cp-plan.json"
+python "$skillRoot\scripts\cp_publish\apply_plan.py" --plan "$planDir\cp-plan.json" --copy --dry-run
+python "$skillRoot\scripts\cp_publish\apply_plan.py" --plan "$planDir\cp-plan.json" --copy --with-results
+Remove-Item -LiteralPath "$planDir\cp-plan.json"
 ```
 
 ```sh
-python3 scripts/cp_publish/plan_publish.py /path/to/solution.cpp --tags DP,Greedy > /tmp/cp-plan.json
-python3 scripts/cp_publish/apply_plan.py --plan /tmp/cp-plan.json --copy --dry-run
-python3 scripts/cp_publish/apply_plan.py --plan /tmp/cp-plan.json --copy --with-results
+plan_dir="$repo/.cp-publish-plans"
+mkdir -p "$plan_dir"
+python3 "$skill_root/scripts/cp_publish/plan_publish.py" /path/to/solution.cpp --tags DP,Greedy > "$plan_dir/cp-plan.json"
+python3 "$skill_root/scripts/cp_publish/apply_plan.py" --plan "$plan_dir/cp-plan.json" --copy --dry-run
+python3 "$skill_root/scripts/cp_publish/apply_plan.py" --plan "$plan_dir/cp-plan.json" --copy --with-results
+rm "$plan_dir/cp-plan.json"
 ```
 
 `apply_plan.py` verifies the source file, creates target parents, copies or moves the solution, calls `scripts/cp_publish/update_readme.py`, and prints `changed_paths` plus `commit_paths`. With `--with-results`, it runs each README update's `contest_result_command`, passes the fetched JSON to `update_readme.py --results-json`, and reports any fetch failures as warnings while still updating the solution entry. Use `--require-results` when result fetch failure should fail the apply. It refuses plans with `needs_confirmation: true` unless the user has explicitly confirmed and the command is rerun with `--allow-confirmation`.
@@ -224,17 +250,19 @@ python3 scripts/cp_publish/update_readme.py --contest-dir /path/to/contest --con
 Use the bundled GitHub helper for safe status, auth, commit, and push operations:
 
 ```powershell
-python scripts/init/github_integration.py status
-python scripts/init/github_integration.py commit -m "Add AtCoder ABC350 A solution" path/to/file.cpp
-python scripts/init/github_integration.py push --dry-run
-python scripts/init/github_integration.py push
+Set-Location $repo
+python "$skillRoot\scripts\init\github_integration.py" status
+python "$skillRoot\scripts\init\github_integration.py" commit -m "Add AtCoder ABC350 A solution" path/to/file.cpp
+python "$skillRoot\scripts\init\github_integration.py" push --dry-run
+python "$skillRoot\scripts\init\github_integration.py" push
 ```
 
 ```sh
-python3 scripts/init/github_integration.py status
-python3 scripts/init/github_integration.py commit -m "Add AtCoder ABC350 A solution" path/to/file.cpp
-python3 scripts/init/github_integration.py push --dry-run
-python3 scripts/init/github_integration.py push
+cd "$repo"
+python3 "$skill_root/scripts/init/github_integration.py" status
+python3 "$skill_root/scripts/init/github_integration.py" commit -m "Add AtCoder ABC350 A solution" path/to/file.cpp
+python3 "$skill_root/scripts/init/github_integration.py" push --dry-run
+python3 "$skill_root/scripts/init/github_integration.py" push
 ```
 
 Stage and commit only explicit paths. Preserve unrelated user changes in the working tree.
