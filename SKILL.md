@@ -3,99 +3,38 @@ name: cp-publish
 description: Publish local competitive programming solutions to GitHub. Use when Codex needs to organize, validate, commit, or push AtCoder or Codeforces solutions, especially when it must check dependencies, verify GitHub CLI authentication, preserve unrelated changes, and safely use git/gh.
 ---
 
-# CP Publish 
+# CP Publish
 
-## Dependency Check
+Use this skill to publish local AtCoder or Codeforces solutions into configured Git repositories. The normal path is:
 
-Run the dependency check before identifying, moving, committing, or pushing any solution. Use the Python executable available on the current platform:
+1. Check dependencies and GitHub auth.
+2. Validate repository routing config.
+3. Build a publish plan.
+4. Apply the plan with the bundled plan applier.
+5. Validate, commit explicit paths, and push safely.
 
-```powershell
-python scripts/check_dependencies.py
-```
+For exact command examples, load `references/workflow.md`. For placement and README details, load only the reference file needed for the current step:
 
-```sh
-python3 scripts/check_dependencies.py
-```
+- `references/path-rules.md`: target path and supported language extension rules.
+- `references/readme-format.md`: contest README structure and rating/result table rules.
+- `references/solution-tags.md`: tag inference rules.
+- `references/solvedac-tag-map.json`: allowed README tag values and solved.ac key mapping.
 
-Use JSON output when another script or structured decision needs the result:
+## Hard Rules
 
-```powershell
-python scripts/check_dependencies.py --json
-```
+- Do not solve or submit the competitive programming problem unless explicitly asked.
+- Do not publish when the contest/problem identity is ambiguous.
+- Do not infer the target repository from filenames, URLs, or the current directory; use configured routes only.
+- Do not place a solution outside the resolved route target base.
+- Do not overwrite an existing solution unless the user clearly intended that update.
+- Do not run destructive git commands, force-push, rewrite history, or commit unrelated changes.
+- Do not ask for or store GitHub tokens, passwords, cookies, or credentials.
+- Do not pass passwords through `sudo -S` or leave a command waiting at a sudo password prompt.
+- If validation fails, do not push unless the user explicitly asks to publish anyway.
 
-```sh
-python3 scripts/check_dependencies.py --json
-```
+## Dependency And Auth Gate
 
-Require these dependencies:
-
-- `git`: inspect, stage, commit, and push repository changes.
-- `gh`: check GitHub authentication and configure git credentials.
-- `python`: run the helper scripts in this skill.
-
-When a metadata or result fetch fails with `CERTIFICATE_VERIFY_FAILED`, diagnose Python HTTPS
-trust before retrying the publish workflow:
-
-```powershell
-python scripts/check_dependencies.py --https
-```
-
-```sh
-python3 scripts/check_dependencies.py --https
-```
-
-The network scripts use `scripts/http_support.py` to keep TLS verification enabled while
-discovering usable CA bundles from common Python, certifi, MSYS2, Homebrew, and Linux paths.
-Do not bypass this by disabling TLS verification. If `--https` reports no usable CA bundle,
-install/update CA certificates or set `SSL_CERT_FILE` to the CA bundle suggested by the
-diagnostic output.
-
-If any required dependency is missing, stop the publish workflow before modifying files, committing, or pushing. Use `scripts/install_dependencies.py --dry-run` to show the missing dependencies and the exact install command or command sequence.
-
-The dependency installer chooses commands for the current OS and available package manager:
-
-- Windows: `winget`, `choco`, or `scoop`.
-- macOS: `brew`, MacPorts, or `conda`.
-- Linux: user-local GitHub CLI install to `~/.local/bin`, Homebrew, `conda`, or distro package managers for dependencies that still require them.
-
-Preview the install plan with:
-
-```powershell
-python scripts/install_dependencies.py --dry-run
-python scripts/install_dependencies.py --only gh --dry-run
-```
-
-```sh
-python3 scripts/install_dependencies.py --dry-run
-python3 scripts/install_dependencies.py --only gh --dry-run
-```
-
-Ask with the exact command or command sequence from the dry-run output:
-
-```text
-GitHub CLI (`gh`) is required for publishing. May I install it with the command(s) below?
-<install command(s) from scripts/install_dependencies.py --dry-run>
-```
-
-If the dry-run output marks a plan as `automatic: no` or contains `sudo`/`pkexec`, do not run the installer from Codex, even after approval. Treat those commands as manual OS administration steps: show the exact commands, ask the user to run them in their own terminal, then rerun the dependency check. Never ask for a sudo password, pass a password through `sudo -S`, or leave a command waiting at a password prompt.
-
-On Linux, a missing `gh` should install without sudo through `scripts/install_gh_user.py`, which downloads the official GitHub CLI Linux tarball and places `gh` in `~/.local/bin`. If that directory is not on PATH in the current shell, the helper scripts still resolve that user-local binary directly.
-
-Only after the user approves, run the installer. In Codex-run workflows, use `--yes` only after explicit approval:
-
-```powershell
-python scripts/install_dependencies.py --yes
-python scripts/install_dependencies.py --only gh --yes
-```
-
-```sh
-python3 scripts/install_dependencies.py --yes
-python3 scripts/install_dependencies.py --only gh --yes
-```
-
-When a person runs the installer directly without `--yes`, it prompts before installing each missing dependency.
-
-After installation, rerun the dependency check with the same Python executable:
+Before identifying, moving, committing, or pushing any solution, run:
 
 ```powershell
 python scripts/check_dependencies.py
@@ -105,9 +44,11 @@ python scripts/check_dependencies.py
 python3 scripts/check_dependencies.py
 ```
 
-If the install fails, report the failure and do not continue publishing.
+Required tools are `git`, `gh`, and `python`. If a dependency is missing, stop before modifying files. Use `scripts/install_dependencies.py --dry-run` to preview installation and ask the user before running an installer. In Codex-run workflows, use `--yes` only after explicit approval.
 
-After `gh` is installed, verify authentication before publishing:
+If a dry-run install plan says `automatic: no` or contains `sudo`/`pkexec`, do not run it from Codex. Show the command and ask the user to run the OS administration step in their own terminal. On Linux, missing `gh` should install without sudo through `scripts/install_gh_user.py`.
+
+Verify GitHub CLI auth before publishing:
 
 ```powershell
 python scripts/github_integration.py auth
@@ -117,86 +58,11 @@ python scripts/github_integration.py auth
 python3 scripts/github_integration.py auth
 ```
 
-In Codex-run workflows, run GitHub authentication checks with network escalation from the first attempt. `gh auth status` often needs network and OS credential-store access, so do not first run these auth checks in the sandbox and then retry only after they fail.
-
-If authentication is missing and the user approves an interactive login, use:
-
-```powershell
-python scripts/github_integration.py auth --login
-```
-
-```sh
-python3 scripts/github_integration.py auth --login
-```
-
-In Codex-run workflows, request network escalation for `auth --login` before running it. Before starting the login, explicitly tell the user that GitHub will ask for a one-time code and that the code is printed in the shell command output. If they do not see the code in the chat, they should open or click the running command output/terminal panel and copy the code from there.
-
-`auth --login` asks Codex/Python to open `https://github.com/login/device`, then starts a browser-based GitHub CLI login and automatically sends the initial Enter key that `gh auth login --web` normally waits for. If the browser cannot be opened by the OS, follow the URL/code printed by `gh`. Use `--no-open-browser` only in a headless environment.
-
-Never ask for or store GitHub tokens, passwords, cookies, or credentials in project files, logs, commits, or skill resources.
-
-If `gh auth status` says `not logged in`, `token invalid`, or otherwise fails immediately after a successful browser login, diagnose before deleting credentials or re-running login:
-
-1. Check the structured error with `gh auth status --json hosts`; if the error mentions socket, DNS, connection, or sandbox/network access, treat it as a network validation failure rather than an invalid token.
-2. In Codex sandboxed environments, rerun the same `gh auth status --hostname github.com` command with network escalation before concluding the token is stale.
-3. On Windows, expect the token to be stored in the system keyring/Credential Manager, not visibly in `hosts.yml`; `hosts.yml` may list the host/user while the secret remains in the keyring.
-4. If the user runs `gh` in both Windows and WSL, verify auth separately in each environment because their credential stores are independent.
-5. Use `--insecure-storage` only if the user explicitly approves plaintext token storage after being told the risk.
+Run `auth --login` only after user approval. In Codex-run workflows, request network escalation for auth checks and login from the first attempt. Tell the user that GitHub may show a one-time code in the command output.
 
 ## Repository Routing
 
-After GitHub authentication and before identifying the solution file, require repository routing config. Do not infer the target repository from filenames, URLs, or the current directory.
-
-The only supported platforms are:
-
-- `atcoder`
-- `codeforces`
-
-Config may contain one or both platform routes. A Codeforces-only user must not be blocked by a missing AtCoder route, and an AtCoder-only user must not be blocked by a missing Codeforces route.
-
-Create or update config interactively with:
-
-```powershell
-python scripts/configure_repos.py init
-```
-
-```sh
-python3 scripts/configure_repos.py init
-```
-
-Configure only one platform with:
-
-```powershell
-python scripts/configure_repos.py init --platform codeforces --codeforces-repo C:\path\to\codeforces --codeforces-base-dir .
-python scripts/configure_repos.py init --platform atcoder --atcoder-repo C:\path\to\atcoder --atcoder-base-dir .
-```
-
-```sh
-python3 scripts/configure_repos.py init --platform codeforces --codeforces-repo /path/to/codeforces --codeforces-base-dir .
-python3 scripts/configure_repos.py init --platform atcoder --atcoder-repo /path/to/atcoder --atcoder-base-dir .
-```
-
-For split repositories:
-
-```powershell
-python scripts/configure_repos.py init --platform both --atcoder-repo C:\path\to\atcoder --codeforces-repo C:\path\to\codeforces --atcoder-base-dir . --codeforces-base-dir .
-```
-
-```sh
-python3 scripts/configure_repos.py init --platform both --atcoder-repo /path/to/atcoder --codeforces-repo /path/to/codeforces --atcoder-base-dir . --codeforces-base-dir .
-```
-
-For one repository with platform folders:
-
-```powershell
-python scripts/configure_repos.py init --platform both --atcoder-repo C:\path\to\cp-solutions --codeforces-repo C:\path\to\cp-solutions --atcoder-base-dir atcoder --codeforces-base-dir codeforces
-```
-
-```sh
-python3 scripts/configure_repos.py init --platform both --atcoder-repo /path/to/cp-solutions --codeforces-repo /path/to/cp-solutions --atcoder-base-dir atcoder --codeforces-base-dir codeforces
-```
-
-Validate config before publishing:
+Before planning, validate repository routing config:
 
 ```powershell
 python scripts/configure_repos.py validate
@@ -206,188 +72,19 @@ python scripts/configure_repos.py validate
 python3 scripts/configure_repos.py validate
 ```
 
-If config is missing or invalid, stop and ask the user to configure at least one repository route. Do not scan, move, commit, or push solutions until config validates.
+Supported platforms are `atcoder` and `codeforces`. A user may configure one or both. After detecting the platform, resolve only that platform route. If config is missing, invalid, or the detected platform has no route, stop and ask the user to configure it.
 
-After detecting the platform, resolve only that platform route:
+If the resolved route has no `user_id`, ask for the user's AtCoder ID or Codeforces handle and save it with:
 
-```powershell
-python scripts/configure_repos.py resolve atcoder
-python scripts/configure_repos.py resolve codeforces
+```text
+scripts/configure_repos.py user <platform> --id <id>
 ```
 
-```sh
-python3 scripts/configure_repos.py resolve atcoder
-python3 scripts/configure_repos.py resolve codeforces
-```
+Load `references/workflow.md` for full init/resolve examples.
 
-Use the resolved `repo_path` and `base_dir` as the only target destination for the solution.
+## Planning
 
-If the detected platform has no configured route, stop and ask the user to add that platform route. Do not fall back to another platform's repository.
-
-Repository config also stores the user's platform ID for contest result tables. If `resolve <platform> --json` has no `user_id`, ask the user for their AtCoder user ID or Codeforces handle and save it before README result updates:
-
-```powershell
-python scripts/configure_repos.py user atcoder --id <atcoder_id>
-python scripts/configure_repos.py user codeforces --id <codeforces_handle>
-```
-
-```sh
-python3 scripts/configure_repos.py user atcoder --id <atcoder_id>
-python3 scripts/configure_repos.py user codeforces --id <codeforces_handle>
-```
-
-## Codeforces Metadata
-
-Run `scripts/codeforces_metadata.py` whenever Codeforces contest names, contest kinds, problem names, or problem ratings are needed for path placement or README updates. The script automatically uses a fresh-enough cache and fetches from the Codeforces API when the cache is missing or stale.
-
-```powershell
-python scripts/codeforces_metadata.py contests
-python scripts/codeforces_metadata.py problems
-python scripts/codeforces_metadata.py all
-```
-
-```sh
-python3 scripts/codeforces_metadata.py contests
-python3 scripts/codeforces_metadata.py problems
-python3 scripts/codeforces_metadata.py all
-```
-
-Use `--refresh` only when the user explicitly requests fresh metadata.
-
-If a metadata fetch fails because network access is blocked by the sandbox, request approval to rerun the same metadata command with network access. If the user does not approve or the API remains unavailable, continue only when the available local evidence is sufficient; otherwise ask the user to confirm the missing contest/problem metadata.
-
-## AtCoder Metadata
-
-Run `scripts/atcoder_metadata.py` whenever AtCoder contest lists, problem titles, contest-problem mappings, or estimated problem ratings are needed for path placement or README updates. The script automatically uses a fresh-enough cache and fetches from Kenkoooo AtCoder Problems when the cache is missing or stale.
-
-```powershell
-python scripts/atcoder_metadata.py contests
-python scripts/atcoder_metadata.py problems
-python scripts/atcoder_metadata.py merged-problems
-python scripts/atcoder_metadata.py contest-problems
-python scripts/atcoder_metadata.py ratings
-python scripts/atcoder_metadata.py all
-python scripts/atcoder_metadata.py problem abc422_a
-python scripts/atcoder_metadata.py rating abc422_a
-```
-
-```sh
-python3 scripts/atcoder_metadata.py contests
-python3 scripts/atcoder_metadata.py problems
-python3 scripts/atcoder_metadata.py merged-problems
-python3 scripts/atcoder_metadata.py contest-problems
-python3 scripts/atcoder_metadata.py ratings
-python3 scripts/atcoder_metadata.py all
-python3 scripts/atcoder_metadata.py problem abc422_a
-python3 scripts/atcoder_metadata.py rating abc422_a
-```
-
-Use Kenkoooo estimated difficulty as the AtCoder README rating when available. If the estimated difficulty is missing or unknown, write `$-$` for the rating. Use `--refresh` only when the user explicitly requests fresh metadata.
-
-If a metadata fetch fails because network access is blocked by the sandbox, request approval to rerun the same metadata command with network access. If the user does not approve or the API remains unavailable, continue only when the available local evidence is sufficient; otherwise ask the user to confirm the missing contest/problem metadata.
-
-## Contest Results
-
-Use `scripts/codeforces_results.py` or `scripts/atcoder_results.py` when README work needs the user's own contest result, especially per-problem wrong attempts and accepted time. These scripts fetch platform data, use a fresh-enough cache, and normalize the result into JSON.
-
-Codeforces:
-
-```powershell
-python scripts/codeforces_results.py contest --contest-id 2061 --user tourist
-```
-
-```sh
-python3 scripts/codeforces_results.py contest --contest-id 2061 --user tourist
-```
-
-The Codeforces script reads `contest.standings` first and falls back to `contest.status` for the requested handle when the user row is not present in standings.
-
-AtCoder:
-
-```powershell
-python scripts/atcoder_results.py contest --contest-id abc422 --user chokudai
-python scripts/atcoder_results.py contest --contest-id abc422 --user chokudai --source kenkoooo-submissions
-```
-
-```sh
-python3 scripts/atcoder_results.py contest --contest-id abc422 --user chokudai
-python3 scripts/atcoder_results.py contest --contest-id abc422 --user chokudai --source kenkoooo-submissions
-```
-
-The AtCoder script uses AtCoder standings JSON by default. Use `--source kenkoooo-submissions` when standings JSON is unavailable or when computing from Kenkoooo user submissions is preferred.
-
-Normalized output shape:
-
-```json
-{
-  "platform": "codeforces",
-  "user": "...",
-  "participated": true,
-  "contest": {
-    "contest_id": "...",
-    "round_number": "...",
-    "contest_name": "...",
-    "url": "..."
-  },
-  "problems": [
-    {
-      "problem_id": "A",
-      "wrong_attempts": 0,
-      "accepted_at_seconds": 420
-    }
-  ],
-  "source": {
-    "standings": "contest.standings",
-    "submissions": null
-  },
-  "fetched_at_unix": 0
-}
-```
-
-AtCoder output omits `round_number`.
-
-When result JSON is available, pass it to `scripts/update_readme.py` with `--results-json`. The README updater adds or refreshes a table with `Problem`, `Wrong`, and `AC Time` rows. If the result script reports that the user was not found in standings or has no contest submissions, skip the result table and continue with the solution entry only.
-
-If a result fetch fails because network access is blocked by the sandbox, request approval to rerun the same command with network access. Do not use these result APIs to fetch private source code or credentials.
-
-## File Placement Rules
-
-Before moving or copying a solution, load `references/path-rules.md`.
-
-Use the configured route from `configure_repos.py resolve <platform>` as the root destination. Every final path must be inside the resolved `target_base`.
-
-Apply `references/path-rules.md` to determine the path or paths below `target_base`. If the rule cannot determine the target path set, or if any target path already exists, ask the user before modifying files.
-
-For Codeforces combined Div. 1 + Div. 2 problems, `references/path-rules.md` may require multiple target paths. Copy the same solution to each target path and commit all of them together.
-
-## Contest README Updates
-
-Before creating or updating AtCoder or Codeforces contest `README.md` files, load:
-
-- `references/readme-format.md`
-- `references/solution-tags.md`
-
-Use Codeforces metadata for Codeforces problem ratings when available. Use Kenkoooo estimated difficulty for AtCoder ratings when available. If rating metadata is missing, follow `references/readme-format.md` and write `$-$`. Infer README tags from the solution code using `references/solution-tags.md`.
-
-Use only README tags that appear as values in `references/solvedac-tag-map.json`; solved.ac keys may be converted through that map. Do not invent fallback tag names. If tag inference is uncertain, ask the user before updating the README.
-
-Use `scripts/update_readme.py` to create or update a contest README entry:
-
-```powershell
-python scripts/update_readme.py --contest-dir C:\path\to\contest --contest-url https://codeforces.com/contest/2061 --problem-id A --rating 800 --tags Case_Work
-python scripts/update_readme.py --contest-dir C:\path\to\contest --contest-url https://atcoder.jp/contests/abc422 --problem-id A --rating - --tags Case_Work
-python scripts/update_readme.py --contest-dir C:\path\to\contest --contest-url https://codeforces.com/contest/2061 --problem-id A --rating 800 --tags Case_Work --results-json C:\path\to\results.json
-```
-
-```sh
-python3 scripts/update_readme.py --contest-dir /path/to/contest --contest-url https://codeforces.com/contest/2061 --problem-id A --rating 800 --tags Case_Work
-python3 scripts/update_readme.py --contest-dir /path/to/contest --contest-url https://atcoder.jp/contests/abc422 --problem-id A --rating - --tags Case_Work
-python3 scripts/update_readme.py --contest-dir /path/to/contest --contest-url https://codeforces.com/contest/2061 --problem-id A --rating 800 --tags Case_Work --results-json /path/to/results.json
-```
-
-## Publish Plan
-
-Before moving files, updating README files, committing, or pushing, build a dry-run publish plan with `scripts/plan_publish.py` whenever a candidate source file is known.
+Always build a JSON plan before moving files, updating README files, committing, or pushing:
 
 ```powershell
 python scripts/plan_publish.py C:\path\to\solution.cpp --tags DP,Greedy
@@ -397,29 +94,38 @@ python scripts/plan_publish.py C:\path\to\solution.cpp --tags DP,Greedy
 python3 scripts/plan_publish.py /path/to/solution.cpp --tags DP,Greedy
 ```
 
-The script combines solution detection, configured repository routing, path rules, and platform metadata. It prints JSON shaped like:
+The plan combines detection, configured routing, path rules, README updates, and metadata. Inspect at least:
 
-```json
-{
-  "source": "...",
-  "targets": ["..."],
-  "readme_updates": [
-    {
-      "readme": "...",
-      "contest_url": "...",
-      "problem_id": "...",
-      "rating": "$-$",
-      "tags": "..."
-    }
-  ],
-  "commit_message": "...",
-  "needs_confirmation": false
-}
-```
+- `source`
+- `platform`
+- `targets`
+- `readme_updates`
+- `commit_message`
+- `needs_confirmation`
+- `warnings`
+- `detection.conflicts`
 
-If `needs_confirmation` is `true`, stop and ask the user to confirm the ambiguous or risky parts before modifying files. Common confirmation triggers include weak detection evidence, missing README tags, missing AtCoder problem title, unknown Codeforces contest kind, missing Codeforces round number, missing Codeforces Others contest group, unknown source extension, or an existing target file.
+If `needs_confirmation` is `true`, stop and ask the user to confirm the risky or ambiguous details before applying the plan. Only rerun `apply_plan.py` with `--allow-confirmation` after that explicit confirmation.
 
-Apply confirmed plans with `scripts/apply_plan.py` instead of hand-composing copy/move and README commands:
+## Confirmation Triggers
+
+Ask before modifying files when any of these are true:
+
+- The source filename is weak, such as `a.cpp`, `main.py`, `solution.cpp`, or `solve.rs`.
+- Multiple candidate solution files are plausible.
+- The platform, contest ID, problem ID, Codeforces round number, contest kind, contest group, or problem title cannot be determined confidently.
+- Detection sources conflict, for example source URL and filename identify different problems.
+- README tags are missing or uncertain.
+- The source extension is unknown.
+- A target path already exists.
+- Metadata or result fetches fail and local evidence is insufficient.
+- A Codeforces combined Div. 1 + Div. 2 paired target is plausible but unclear.
+
+When asking, show the source path, platform, contest ID, Codeforces round/group/kind when relevant, problem ID, problem title, target path or targets, and the specific warning/conflict.
+
+## Applying Plans
+
+Use `scripts/apply_plan.py` instead of hand-composing copy/move and README commands.
 
 ```powershell
 python scripts/plan_publish.py C:\path\to\solution.cpp --tags DP,Greedy > C:\path\to\cp-plan.json
@@ -433,37 +139,35 @@ python3 scripts/apply_plan.py --plan /tmp/cp-plan.json --copy --dry-run
 python3 scripts/apply_plan.py --plan /tmp/cp-plan.json --copy
 ```
 
-`apply_plan.py` verifies the source file, creates target parents, copies or moves the solution, calls `scripts/update_readme.py`, and prints `changed_paths` plus `commit_paths`. It refuses plans with `needs_confirmation: true` unless the user has explicitly confirmed and the command is rerun with `--allow-confirmation`.
+`apply_plan.py` verifies the source file, creates target parents, copies or moves the solution, calls `scripts/update_readme.py`, and prints `changed_paths` plus `commit_paths`. For multiple Codeforces targets, copy the same source to every target; do not move to only one target.
 
-When network metadata is unavailable because sandbox access is blocked, request approval to rerun the same planning command with network access. If metadata is still unavailable, continue only when the user confirms the missing contest/problem details.
+## Metadata And README Rules
+
+Load `references/path-rules.md` when checking placement or target paths. Load `references/readme-format.md` and `references/solution-tags.md` before README-specific edits or tag inference.
+
+Use Codeforces metadata for Codeforces contest names, contest kinds, problem names, and ratings. Use AtCoder/Kenkoooo metadata for AtCoder problem titles and estimated difficulty. Use `--refresh` only when the user explicitly requests fresh metadata.
+
+If network metadata or result fetches fail because sandbox access is blocked, request approval to rerun the same command with network access. If the user does not approve or the API remains unavailable, continue only when local evidence is sufficient; otherwise ask for confirmation.
+
+Use only README tags that appear as values in `references/solvedac-tag-map.json`; solved.ac keys may be converted through that map. Do not invent fallback tag names.
 
 ## Publish Workflow
 
-1. Inspect the working tree of the configured target repositories.
-2. Validate repository routing config.
-3. Identify the candidate solution file from the user prompt, recent changes, or current directory.
-4. Detect platform, contest ID, problem ID, and language.
-5. Prefer detection signals in this order:
-   - Explicit problem URL in source comments.
-   - Structured metadata comments.
-   - Existing directory path.
-   - Filename pattern.
-   - User prompt.
-6. If confidence is low or multiple problems are plausible, ask the user for confirmation before modifying files.
-7. Resolve the configured route for the detected platform.
-8. If the route has no `user_id`, ask the user for their platform ID and save it with `scripts/configure_repos.py user <platform> --id <id>`.
-9. Run `scripts/plan_publish.py` for the candidate source and inspect the JSON plan.
-10. If `needs_confirmation` is `true`, ask the user to confirm before modifying files.
-11. Apply the plan with `scripts/apply_plan.py --copy --dry-run`, inspect the JSON output, then run it without `--dry-run` when it is safe.
-12. Use the returned `commit_paths` as the explicit commit target list.
-13. Update other README, index, or problem list files when the repository uses them.
-14. Run lightweight validation for the solution language when practical.
-15. Commit only the relevant solution and index changes.
-16. Push with `git`/`gh` without force-pushing.
+1. Inspect the relevant working tree and preserve unrelated changes.
+2. Run dependency and auth gates.
+3. Validate repository routing.
+4. Identify the candidate solution file.
+5. Build and inspect a plan.
+6. Resolve any `needs_confirmation`, warnings, or conflicts with the user.
+7. Run `apply_plan.py --copy --dry-run`, inspect the JSON, then run without `--dry-run`.
+8. Use returned `commit_paths` as the explicit commit target list.
+9. Run lightweight validation for the solution language when practical.
+10. Commit with the planned commit message or a concise equivalent.
+11. Push with `git`/`gh` without force-pushing.
 
-## GitHub Helpers
+## GitHub Commit And Push
 
-Use the bundled GitHub helper for safe status, auth, commit, and push operations:
+Use the bundled GitHub helper where possible:
 
 ```powershell
 python scripts/github_integration.py status
@@ -481,19 +185,7 @@ python3 scripts/github_integration.py push
 
 Stage and commit only explicit paths. Preserve unrelated user changes in the working tree.
 
-## Safety Rules
-
-- Do not solve or submit the competitive programming problem unless explicitly asked.
-- Do not publish when the contest/problem identity is ambiguous.
-- Do not overwrite an existing solution unless it clearly refers to the same problem and the user intended an update.
-- Do not run destructive git commands.
-- Do not force-push or rewrite git history.
-- Do not commit unrelated changes.
-- If validation fails, do not push unless the user explicitly asks to publish anyway.
-
-## Commit Message Style
-
-Use concise commit messages:
+Commit message examples:
 
 - `Add AtCoder ABC350 A solution`
 - `Add Codeforces 1094A solution`

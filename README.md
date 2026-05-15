@@ -414,5 +414,6 @@ scripts/codeforces_results.py    # Codeforces contest 성적 JSON 정규화
 references/path-rules.md         # 저장 경로 규칙
 references/readme-format.md      # README 양식
 references/solution-tags.md      # 풀이 태그 규칙
+references/workflow.md           # 상세 명령 예시와 workflow reference
 references/solvedac-tag-map.json # solved.ac 태그 매핑
 ```
