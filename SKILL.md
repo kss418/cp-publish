@@ -62,14 +62,16 @@ Run `auth --login` only after user approval. In Codex-run workflows, request net
 
 ## Repository Routing
 
-Before planning, validate repository routing config:
+Before applying a plan, resolve the detected platform route. Use platform-scoped validation and do not fail a publish only because an unused platform route is broken:
 
 ```powershell
-python scripts/init/configure_repos.py validate
+python scripts/init/configure_repos.py validate --platform <platform>
+python scripts/init/configure_repos.py resolve <platform>
 ```
 
 ```sh
-python3 scripts/init/configure_repos.py validate
+python3 scripts/init/configure_repos.py validate --platform <platform>
+python3 scripts/init/configure_repos.py resolve <platform>
 ```
 
 Supported platforms are `atcoder` and `codeforces`. A user may configure one or both. After detecting the platform, resolve only that platform route. If config is missing, invalid, or the detected platform has no route, stop and ask the user to configure it.

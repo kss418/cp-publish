@@ -262,7 +262,58 @@ def selected_platforms(value: str) -> list[str]:
     raise ConfigError(f"unsupported platform: {value}")
 
 
-def validate_config(data: dict[str, Any]) -> tuple[list[str], list[str]]:
+def route_repo_name(data: dict[str, Any], platform: str) -> str | None:
+    routes = data.get("routes")
+    if not isinstance(routes, dict):
+        return None
+    route = routes.get(platform)
+    if not isinstance(route, dict):
+        return None
+    repo_name = route.get("repo")
+    return repo_name if isinstance(repo_name, str) else None
+
+
+def relevant_validation_errors(
+    platform: str, repo_name: str | None, errors: list[str]
+) -> list[str]:
+    relevant: list[str] = []
+    for error in errors:
+        if error.startswith(("version ", "repositories must ", "routes must ", "users must ")):
+            relevant.append(error)
+        elif error.startswith(f"route {platform} "):
+            relevant.append(error)
+        elif repo_name and error.startswith(f"repository {repo_name} "):
+            relevant.append(error)
+        elif repo_name and error == f"invalid repository name: {repo_name}":
+            relevant.append(error)
+        elif error.startswith(f"user id for {platform} "):
+            relevant.append(error)
+    return relevant
+
+
+def relevant_validation_warnings(
+    platform: str, repo_name: str | None, warnings: list[str]
+) -> list[str]:
+    relevant: list[str] = []
+    for warning in warnings:
+        if warning.startswith(f"route {platform} "):
+            relevant.append(warning)
+        elif repo_name and warning.startswith(f"repository {repo_name} "):
+            relevant.append(warning)
+        elif warning.startswith(f"user id for {platform} "):
+            relevant.append(warning)
+        elif not (
+            warning.startswith("route ")
+            or warning.startswith("repository ")
+            or warning.startswith("user id for ")
+        ):
+            relevant.append(warning)
+    return relevant
+
+
+def validate_config(
+    data: dict[str, Any], *, platform: str | None = None
+) -> tuple[list[str], list[str]]:
     errors: list[str] = []
     warnings: list[str] = []
 
@@ -371,7 +422,10 @@ def validate_config(data: dict[str, Any]) -> tuple[list[str], list[str]]:
             errors.append(f"route {platform_name}: {exc}")
             continue
 
-        repo_path_value = repositories[repo_name].get("path")
+        repo_info = repositories.get(repo_name)
+        if not isinstance(repo_info, dict):
+            continue
+        repo_path_value = repo_info.get("path")
         if not isinstance(repo_path_value, str):
             continue
         repo_path = normalize_repo_path(repo_path_value)
@@ -390,7 +444,17 @@ def validate_config(data: dict[str, Any]) -> tuple[list[str], list[str]]:
                 f"user id for {platform_name} is not configured; run `scripts/init/configure_repos.py user {platform_name}`."
             )
 
-    return errors, warnings
+    if platform is None:
+        return errors, warnings
+
+    repo_name = route_repo_name(data, platform)
+    scoped_errors = relevant_validation_errors(platform, repo_name, errors)
+    scoped_warnings = relevant_validation_warnings(platform, repo_name, warnings)
+    routes_for_scope = data.get("routes")
+    if isinstance(routes_for_scope, dict) and platform not in routes_for_scope:
+        scoped_errors.append(f"route {platform} is not configured")
+
+    return scoped_errors, scoped_warnings
 
 
 def print_summary(data: dict[str, Any], *, config_path: Path) -> None:
@@ -458,22 +522,22 @@ def print_validation(errors: list[str], warnings: list[str]) -> None:
 
 def validate_command(args: argparse.Namespace, config_path: Path) -> int:
     data = read_config(config_path)
-    errors, warnings = validate_config(data)
+    errors, warnings = validate_config(data, platform=args.platform)
 
     if args.json:
-        print(
-            json.dumps(
-                {
-                    "config_path": str(config_path),
-                    "valid": not errors,
-                    "errors": errors,
-                    "warnings": warnings,
-                },
-                indent=2,
-            )
-        )
+        payload: dict[str, Any] = {
+            "config_path": str(config_path),
+            "valid": not errors,
+            "errors": errors,
+            "warnings": warnings,
+        }
+        if args.platform:
+            payload["platform"] = args.platform
+        print(json.dumps(payload, indent=2))
     else:
         print(f"config: {config_path}")
+        if args.platform:
+            print(f"platform: {args.platform}")
         print_validation(errors, warnings)
 
     return 1 if errors else 0
@@ -481,16 +545,20 @@ def validate_command(args: argparse.Namespace, config_path: Path) -> int:
 
 def resolve_platform(args: argparse.Namespace, config_path: Path) -> int:
     data = read_config(config_path)
-    errors, warnings = validate_config(data)
+    errors, warnings = validate_config(data, platform=args.platform)
     if errors:
-        raise ConfigError("Config is invalid; run `scripts/init/configure_repos.py validate`.")
-    if args.platform not in data["routes"]:
+        detail = "; ".join(errors)
+        raise ConfigError(f"Config is invalid for {args.platform}: {detail}")
+
+    routes = data.get("routes") if isinstance(data.get("routes"), dict) else {}
+    if args.platform not in routes:
         raise ConfigError(
             f"No route configured for {args.platform}. Run `scripts/init/configure_repos.py init --platform {args.platform}`."
         )
 
-    route = data["routes"][args.platform]
-    repo = data["repositories"][route["repo"]]
+    repositories = data.get("repositories") if isinstance(data.get("repositories"), dict) else {}
+    route = routes[args.platform]
+    repo = repositories[route["repo"]]
     users = data.get("users") or {}
     repo_path = normalize_repo_path(repo["path"])
     base_dir = normalize_base_dir(route.get("base_dir", "."))
@@ -604,6 +672,11 @@ def build_parser() -> argparse.ArgumentParser:
     show_parser.add_argument("--json", action="store_true", help="Print JSON.")
 
     validate_parser = subparsers.add_parser("validate", help="Validate config.")
+    validate_parser.add_argument(
+        "--platform",
+        choices=ALLOWED_PLATFORMS,
+        help="Validate only the selected platform route and its repository.",
+    )
     validate_parser.add_argument("--json", action="store_true", help="Print JSON.")
 
     resolve_parser = subparsers.add_parser("resolve", help="Resolve a platform route.")

@@ -157,7 +157,10 @@ Windows:
 
 ```powershell
 python scripts/init/configure_repos.py init
-python scripts/init/configure_repos.py validate
+python scripts/init/configure_repos.py validate --platform atcoder
+python scripts/init/configure_repos.py validate --platform codeforces
+python scripts/init/configure_repos.py resolve atcoder
+python scripts/init/configure_repos.py resolve codeforces
 python scripts/init/configure_repos.py user codeforces --id <codeforces_handle>
 python scripts/init/configure_repos.py user atcoder --id kss418
 ```
@@ -166,7 +169,10 @@ macOS / Linux:
 
 ```sh
 python3 scripts/init/configure_repos.py init
-python3 scripts/init/configure_repos.py validate
+python3 scripts/init/configure_repos.py validate --platform atcoder
+python3 scripts/init/configure_repos.py validate --platform codeforces
+python3 scripts/init/configure_repos.py resolve atcoder
+python3 scripts/init/configure_repos.py resolve codeforces
 python3 scripts/init/configure_repos.py user codeforces --id <codeforces_handle>
 python3 scripts/init/configure_repos.py user atcoder --id kss418
 ```

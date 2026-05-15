@@ -97,17 +97,19 @@ python3 scripts/init/configure_repos.py init --platform both --atcoder-repo /pat
 python3 scripts/init/configure_repos.py init --platform both --atcoder-repo /path/to/cp-solutions --codeforces-repo /path/to/cp-solutions --atcoder-base-dir atcoder --codeforces-base-dir codeforces
 ```
 
-Validate and resolve:
+Validate and resolve only the platform being published. A broken unused route should not block the current platform:
 
 ```powershell
-python scripts/init/configure_repos.py validate
+python scripts/init/configure_repos.py validate --platform atcoder
 python scripts/init/configure_repos.py resolve atcoder
+python scripts/init/configure_repos.py validate --platform codeforces
 python scripts/init/configure_repos.py resolve codeforces
 ```
 
 ```sh
-python3 scripts/init/configure_repos.py validate
+python3 scripts/init/configure_repos.py validate --platform atcoder
 python3 scripts/init/configure_repos.py resolve atcoder
+python3 scripts/init/configure_repos.py validate --platform codeforces
 python3 scripts/init/configure_repos.py resolve codeforces
 ```
 
