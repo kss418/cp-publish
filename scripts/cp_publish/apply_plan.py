@@ -114,7 +114,15 @@ def validate_file_targets(
     for target in targets:
         require_under_repo(target, repo, "target")
         if source == target:
-            raise ApplyPlanError(f"Source and target are the same path: {source}")
+            actions.append(
+                {
+                    "path": str(target),
+                    "changed": False,
+                    "operation": "move" if move else "copy",
+                    "already_at_target": True,
+                }
+            )
+            continue
         changed = source_target_changed(source, target)
         if changed and target.exists() and not overwrite:
             raise ApplyPlanError(
@@ -338,9 +346,14 @@ def changed_and_commit_paths(
     commit_paths: list[str] = []
 
     for action in file_actions:
+        path = resolved_path(action["path"], "target")
+        if action.get("already_at_target"):
+            relative = relative_to_repo(path, repo)
+            if relative:
+                commit_paths.append(relative)
+            continue
         if not action["changed"]:
             continue
-        path = resolved_path(action["path"], "target")
         changed_paths.append(str(path))
         relative = relative_to_repo(path, repo)
         if relative:
