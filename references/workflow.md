@@ -22,6 +22,26 @@ cd "$repo"
 
 If a command needs to write `.git/index`, push, access the `gh` keyring, write outside the active writable root, or access metadata/results over the network, request sandbox escalation on the first attempt.
 
+## Session Gate Cache
+
+During one Codex session, remember successful gate checks for:
+
+- dependency check: Python environment plus `git`/`gh` availability
+- GitHub auth check: active `gh` account and git protocol
+- route check: platform, resolved repo path, `base_dir`, `target_base`, and `user_id`
+
+For another publish in the same session and same resolved repository, skip rerunning the matching gate when the cached values still apply. Rerun only the affected gate if the platform, repository path, config file, `user_id`, remote, branch, GitHub account, Python executable, or tool availability changes.
+
+Do not cache failed checks. If a later git, gh, metadata, result, or push command fails in a way that suggests auth/config/environment drift, rerun the relevant gate before continuing.
+
+The session cache does not replace per-publish safety checks: always inspect the current working tree, build a fresh plan, dry-run the plan, inspect warnings/conflicts, and commit explicit paths only.
+
+## Solution Build Validation
+
+Do not compile or run solution source files during routine publishing. The publish workflow validates detection, paths, README updates, git scope, and push behavior; it does not validate algorithm correctness or language compilation by default.
+
+Compile or run source code only when the user explicitly requests solution verification/debugging, or when there is local evidence of file corruption or a mismatched extension. Keep any compilation result separate from publish gate status.
+
 ## Dependency And Auth
 
 Check required tools before modifying files:

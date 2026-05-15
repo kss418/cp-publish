@@ -40,6 +40,20 @@ Keep temporary plan JSON files inside the resolved target repository, the resolv
 
 If a command needs to write outside the active writable root, update `.git/index`, use the GitHub CLI keyring, or access the network for metadata/results/auth/push, request escalation on the first attempt. If a write fails with `Access is denied`, `Permission denied`, `index.lock`, or Git `safe.directory`/ownership errors, stop retrying from the skill directory and rerun from the target repository with the required escalation.
 
+## Session Gate Cache
+
+Within one Codex session, cache successful dependency, GitHub auth, and repository route checks by platform and repository path. For repeated publishes to the same resolved repository in the same session, reuse those checks instead of rerunning them.
+
+Invalidate the session cache and rerun the relevant gate when the target repository path, platform, route config, `user_id`, GitHub account, remote, branch, Python environment, or tool availability changes, or when a git/gh/network command fails in a way that could be auth or config related. Never reuse a cached failure.
+
+This cache only skips gates. Still inspect the current working tree before each publish, still build/apply plans for each publish, and still commit only explicit paths.
+
+## Solution Build Validation
+
+Do not compile, run, submit, or otherwise execute competitive programming solution code as part of the default publish workflow. Treat publishing as metadata, placement, README, git, and push work only.
+
+Compile or run a solution only when the user explicitly asks for it, when the task is to debug/verify the solution itself, or when local evidence suggests the file is corrupted or not the language/extension it claims to be. If compilation is requested, keep it separate from publish gating and report it as an optional verification result.
+
 ## Dependency And Auth Gate
 
 Before identifying, moving, committing, or pushing any solution, run:
@@ -179,14 +193,14 @@ Use only README tags that appear as values in `references/solvedac-tag-map.json`
 ## Publish Workflow
 
 1. Inspect the relevant working tree and preserve unrelated changes.
-2. Run dependency and auth gates.
-3. Validate repository routing.
+2. Run dependency and auth gates, or reuse the current-session gate cache when valid.
+3. Validate repository routing, or reuse the current-session route cache when valid.
 4. Identify the candidate solution file.
 5. Build and inspect a plan.
 6. Resolve any `needs_confirmation`, warnings, or conflicts with the user.
 7. Run `apply_plan.py --copy --dry-run`, inspect the JSON, then run without `--dry-run`.
 8. Use returned `commit_paths` as the explicit commit target list.
-9. Run lightweight validation for the solution language when practical.
+9. Do not compile or run solution code unless the user explicitly asked for solution verification.
 10. Commit with the planned commit message or a concise equivalent.
 11. Push with `git`/`gh` without force-pushing.
 
