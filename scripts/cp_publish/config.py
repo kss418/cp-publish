@@ -7,6 +7,26 @@ import configure_repos
 from .models import PlanError, Route
 
 
+def relevant_validation_warnings(
+    platform: str, repo_name: str | None, warnings: list[str]
+) -> list[str]:
+    relevant: list[str] = []
+    for warning in warnings:
+        if warning.startswith(f"route {platform} "):
+            relevant.append(warning)
+        elif repo_name and warning.startswith(f"repository {repo_name} "):
+            relevant.append(warning)
+        elif warning.startswith(f"user id for {platform} "):
+            relevant.append(warning)
+        elif not (
+            warning.startswith("route ")
+            or warning.startswith("repository ")
+            or warning.startswith("user id for ")
+        ):
+            relevant.append(warning)
+    return relevant
+
+
 def load_route(platform: str, config_path: str | None) -> Route:
     path = Path(config_path).expanduser() if config_path else configure_repos.default_config_path()
     try:
@@ -34,11 +54,9 @@ def load_route(platform: str, config_path: str | None) -> Route:
     repo_path = configure_repos.normalize_repo_path(repo.get("path", ""))
     base_dir = configure_repos.normalize_base_dir(route.get("base_dir", ""))
     target_base = repo_path / base_dir if base_dir else repo_path
-    relevant_warnings = [
-        warning
-        for warning in validation_warnings
-        if not warning.startswith("route ") or warning.startswith(f"route {platform} ")
-    ]
+    relevant_warnings = relevant_validation_warnings(
+        platform, repo_name, validation_warnings
+    )
     return Route(
         repo_path=repo_path,
         base_dir=base_dir,
