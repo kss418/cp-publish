@@ -88,7 +88,7 @@ def unique(values: list[str]) -> list[str]:
 
 
 def skill_root() -> Path:
-    return Path(__file__).resolve().parent.parent
+    return Path(__file__).resolve().parents[2]
 
 
 def source_target_changed(source: Path, target: Path) -> bool:

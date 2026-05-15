@@ -14,7 +14,10 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-import http_support
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from api import http_support
 
 
 @dataclass(frozen=True)

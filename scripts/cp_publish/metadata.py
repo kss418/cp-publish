@@ -15,7 +15,7 @@ def load_atcoder_metadata(no_metadata: bool, refresh: bool, warnings: list[str])
     if no_metadata:
         return {}
     try:
-        import atcoder_metadata
+        from api import atcoder_metadata
 
         cache_dir = atcoder_metadata.default_cache_dir()
         fetch_kwargs = {
@@ -38,7 +38,7 @@ def load_codeforces_metadata(no_metadata: bool, refresh: bool, warnings: list[st
     if no_metadata:
         return {}
     try:
-        import codeforces_metadata
+        from api import codeforces_metadata
 
         cache_dir = codeforces_metadata.default_cache_dir()
         fetch_kwargs = {

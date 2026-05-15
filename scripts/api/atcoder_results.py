@@ -14,8 +14,14 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-import atcoder_metadata
-import http_support
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+try:
+    from . import atcoder_metadata, http_support
+except ImportError:
+    import atcoder_metadata
+    import http_support
 
 
 ATCODER_CONTEST_BASE = "https://atcoder.jp/contests"

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import configure_repos
+from init import configure_repos
 
 from .models import PlanError, Route
 
@@ -63,7 +63,7 @@ def load_route(platform: str, config_path: str | None) -> Route:
 
     if not isinstance(route, dict):
         raise PlanError(
-            f"No configured route for {platform}. Run scripts/configure_repos.py init --platform {platform} first."
+            f"No configured route for {platform}. Run scripts/init/configure_repos.py init --platform {platform} first."
         )
 
     repos = config.get("repositories") if isinstance(config.get("repositories"), dict) else {}

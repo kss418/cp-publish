@@ -160,7 +160,7 @@ def build_config(
 def read_config(path: Path) -> dict[str, Any]:
     if not path.exists():
         raise ConfigError(
-            f"No cp-publish config found at {path}. Run `configure_repos.py init` first."
+            f"No cp-publish config found at {path}. Run `scripts/init/configure_repos.py init` first."
         )
 
     try:
@@ -387,7 +387,7 @@ def validate_config(data: dict[str, Any]) -> tuple[list[str], list[str]]:
 
         if platform_name not in users:
             warnings.append(
-                f"user id for {platform_name} is not configured; run `configure_repos.py user {platform_name}`."
+                f"user id for {platform_name} is not configured; run `scripts/init/configure_repos.py user {platform_name}`."
             )
 
     return errors, warnings
@@ -483,10 +483,10 @@ def resolve_platform(args: argparse.Namespace, config_path: Path) -> int:
     data = read_config(config_path)
     errors, warnings = validate_config(data)
     if errors:
-        raise ConfigError("Config is invalid; run `configure_repos.py validate`.")
+        raise ConfigError("Config is invalid; run `scripts/init/configure_repos.py validate`.")
     if args.platform not in data["routes"]:
         raise ConfigError(
-            f"No route configured for {args.platform}. Run `configure_repos.py init --platform {args.platform}`."
+            f"No route configured for {args.platform}. Run `scripts/init/configure_repos.py init --platform {args.platform}`."
         )
 
     route = data["routes"][args.platform]

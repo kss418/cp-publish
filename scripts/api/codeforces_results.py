@@ -10,7 +10,13 @@ import time
 from pathlib import Path
 from typing import Any
 
-import codeforces_metadata
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+try:
+    from . import codeforces_metadata
+except ImportError:
+    import codeforces_metadata
 from cp_publish.paths import extract_codeforces_round_number
 
 

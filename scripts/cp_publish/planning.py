@@ -45,7 +45,10 @@ JAVA_PUBLIC_CLASS_RE = re.compile(r"\bpublic\s+class\s+([A-Za-z_$][A-Za-z0-9_$]*
 
 
 def script_path(script_name: str) -> Path:
-    return Path(__file__).resolve().parent.parent / script_name
+    scripts_dir = Path(__file__).resolve().parents[1]
+    if script_name.startswith("api/"):
+        return scripts_dir / script_name
+    return Path(__file__).resolve().parent / script_name
 
 
 def build_update_command(update: dict[str, Any]) -> list[str]:
@@ -70,7 +73,7 @@ def build_update_command(update: dict[str, Any]) -> list[str]:
 def build_contest_result_command(platform: str, contest_id: str, user_id: str | None) -> list[str] | None:
     if not user_id:
         return None
-    script_name = "atcoder_results.py" if platform == "atcoder" else "codeforces_results.py"
+    script_name = "api/atcoder_results.py" if platform == "atcoder" else "api/codeforces_results.py"
     return [
         sys.executable,
         str(script_path(script_name)),
@@ -359,7 +362,7 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     if not route.user_id:
         user_warning = (
             f"{detection.platform} user id is not configured; ask the user and run "
-            f"`scripts/configure_repos.py user {detection.platform} --id <id>` before adding contest results to README."
+            f"`scripts/init/configure_repos.py user {detection.platform} --id <id>` before adding contest results to README."
         )
         if not any("user id" in warning and detection.platform in warning for warning in warnings):
             warnings.append(user_warning)

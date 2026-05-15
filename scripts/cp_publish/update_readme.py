@@ -15,7 +15,7 @@ from typing import Any
 ENTRY_RE = re.compile(r"^(\S+)\s*/\s*Rating\s*:\s*(.*?)\s*/\s*(.+?)\s*$")
 RESULTS_HEADING = "## Results"
 SOLUTIONS_HEADING = "## Solutions"
-TAG_MAP_PATH = Path(__file__).resolve().parent.parent / "references" / "solvedac-tag-map.json"
+TAG_MAP_PATH = Path(__file__).resolve().parents[2] / "references" / "solvedac-tag-map.json"
 
 
 class ReadmeUpdateError(RuntimeError):
@@ -489,7 +489,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--results-json",
         type=Path,
-        help="Normalized contest result JSON from atcoder_results.py or codeforces_results.py. Use '-' for stdin.",
+        help="Normalized contest result JSON from scripts/api/atcoder_results.py or scripts/api/codeforces_results.py. Use '-' for stdin.",
     )
     parser.add_argument(
         "--result",

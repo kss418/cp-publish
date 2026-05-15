@@ -10,7 +10,10 @@ import sys
 import webbrowser
 from pathlib import Path
 
-from check_dependencies import install_command, tool_path
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from init.check_dependencies import install_command, tool_path
 
 GITHUB_DEVICE_URL = "https://github.com/login/device"
 

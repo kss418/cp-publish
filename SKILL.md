@@ -37,25 +37,25 @@ For exact command examples, load `references/workflow.md`. For placement and REA
 Before identifying, moving, committing, or pushing any solution, run:
 
 ```powershell
-python scripts/check_dependencies.py
+python scripts/init/check_dependencies.py
 ```
 
 ```sh
-python3 scripts/check_dependencies.py
+python3 scripts/init/check_dependencies.py
 ```
 
-Required tools are `git`, `gh`, and `python`. If a dependency is missing, stop before modifying files. Use `scripts/install_dependencies.py --dry-run` to preview installation and ask the user before running an installer. In Codex-run workflows, use `--yes` only after explicit approval.
+Required tools are `git`, `gh`, and `python`. If a dependency is missing, stop before modifying files. Use `scripts/init/install_dependencies.py --dry-run` to preview installation and ask the user before running an installer. In Codex-run workflows, use `--yes` only after explicit approval.
 
-If a dry-run install plan says `automatic: no` or contains `sudo`/`pkexec`, do not run it from Codex. Show the command and ask the user to run the OS administration step in their own terminal. On Linux, missing `gh` should install without sudo through `scripts/install_gh_user.py`.
+If a dry-run install plan says `automatic: no` or contains `sudo`/`pkexec`, do not run it from Codex. Show the command and ask the user to run the OS administration step in their own terminal. On Linux, missing `gh` should install without sudo through `scripts/init/install_gh_user.py`.
 
 Verify GitHub CLI auth before publishing:
 
 ```powershell
-python scripts/github_integration.py auth
+python scripts/init/github_integration.py auth
 ```
 
 ```sh
-python3 scripts/github_integration.py auth
+python3 scripts/init/github_integration.py auth
 ```
 
 Run `auth --login` only after user approval. In Codex-run workflows, request network escalation for auth checks and login from the first attempt. Tell the user that GitHub may show a one-time code in the command output.
@@ -65,11 +65,11 @@ Run `auth --login` only after user approval. In Codex-run workflows, request net
 Before planning, validate repository routing config:
 
 ```powershell
-python scripts/configure_repos.py validate
+python scripts/init/configure_repos.py validate
 ```
 
 ```sh
-python3 scripts/configure_repos.py validate
+python3 scripts/init/configure_repos.py validate
 ```
 
 Supported platforms are `atcoder` and `codeforces`. A user may configure one or both. After detecting the platform, resolve only that platform route. If config is missing, invalid, or the detected platform has no route, stop and ask the user to configure it.
@@ -77,7 +77,7 @@ Supported platforms are `atcoder` and `codeforces`. A user may configure one or 
 If the resolved route has no `user_id`, ask for the user's AtCoder ID or Codeforces handle and save it with:
 
 ```text
-scripts/configure_repos.py user <platform> --id <id>
+scripts/init/configure_repos.py user <platform> --id <id>
 ```
 
 Load `references/workflow.md` for full init/resolve examples.
@@ -87,11 +87,11 @@ Load `references/workflow.md` for full init/resolve examples.
 Always build a JSON plan before moving files, updating README files, committing, or pushing:
 
 ```powershell
-python scripts/plan_publish.py C:\path\to\solution.cpp --tags DP,Greedy
+python scripts/cp_publish/plan_publish.py C:\path\to\solution.cpp --tags DP,Greedy
 ```
 
 ```sh
-python3 scripts/plan_publish.py /path/to/solution.cpp --tags DP,Greedy
+python3 scripts/cp_publish/plan_publish.py /path/to/solution.cpp --tags DP,Greedy
 ```
 
 The plan combines detection, configured routing, path rules, README updates, and metadata. Inspect at least:
@@ -126,21 +126,21 @@ When asking, show the source path, platform, contest ID, Codeforces round/group/
 
 ## Applying Plans
 
-Use `scripts/apply_plan.py` instead of hand-composing copy/move and README commands.
+Use `scripts/cp_publish/apply_plan.py` instead of hand-composing copy/move and README commands.
 
 ```powershell
-python scripts/plan_publish.py C:\path\to\solution.cpp --tags DP,Greedy > C:\path\to\cp-plan.json
-python scripts/apply_plan.py --plan C:\path\to\cp-plan.json --copy --dry-run
-python scripts/apply_plan.py --plan C:\path\to\cp-plan.json --copy --with-results
+python scripts/cp_publish/plan_publish.py C:\path\to\solution.cpp --tags DP,Greedy > C:\path\to\cp-plan.json
+python scripts/cp_publish/apply_plan.py --plan C:\path\to\cp-plan.json --copy --dry-run
+python scripts/cp_publish/apply_plan.py --plan C:\path\to\cp-plan.json --copy --with-results
 ```
 
 ```sh
-python3 scripts/plan_publish.py /path/to/solution.cpp --tags DP,Greedy > /tmp/cp-plan.json
-python3 scripts/apply_plan.py --plan /tmp/cp-plan.json --copy --dry-run
-python3 scripts/apply_plan.py --plan /tmp/cp-plan.json --copy --with-results
+python3 scripts/cp_publish/plan_publish.py /path/to/solution.cpp --tags DP,Greedy > /tmp/cp-plan.json
+python3 scripts/cp_publish/apply_plan.py --plan /tmp/cp-plan.json --copy --dry-run
+python3 scripts/cp_publish/apply_plan.py --plan /tmp/cp-plan.json --copy --with-results
 ```
 
-`apply_plan.py` verifies the source file, creates target parents, copies or moves the solution, calls `scripts/update_readme.py`, and prints `changed_paths` plus `commit_paths`. Use `--with-results` to fetch contest results from the plan and update the README `## Results` table when possible. Use `--require-results` only when a result fetch failure should fail the apply. For multiple Codeforces targets, copy the same source to every target; do not move to only one target.
+`apply_plan.py` verifies the source file, creates target parents, copies or moves the solution, calls `scripts/cp_publish/update_readme.py`, and prints `changed_paths` plus `commit_paths`. Use `--with-results` to fetch contest results from the plan and update the README `## Results` table when possible. Use `--require-results` only when a result fetch failure should fail the apply. For multiple Codeforces targets, copy the same source to every target; do not move to only one target.
 
 ## Metadata And README Rules
 
@@ -171,17 +171,17 @@ Use only README tags that appear as values in `references/solvedac-tag-map.json`
 Use the bundled GitHub helper where possible:
 
 ```powershell
-python scripts/github_integration.py status
-python scripts/github_integration.py commit -m "Add AtCoder ABC350 A solution" path/to/file.cpp
-python scripts/github_integration.py push --dry-run
-python scripts/github_integration.py push
+python scripts/init/github_integration.py status
+python scripts/init/github_integration.py commit -m "Add AtCoder ABC350 A solution" path/to/file.cpp
+python scripts/init/github_integration.py push --dry-run
+python scripts/init/github_integration.py push
 ```
 
 ```sh
-python3 scripts/github_integration.py status
-python3 scripts/github_integration.py commit -m "Add AtCoder ABC350 A solution" path/to/file.cpp
-python3 scripts/github_integration.py push --dry-run
-python3 scripts/github_integration.py push
+python3 scripts/init/github_integration.py status
+python3 scripts/init/github_integration.py commit -m "Add AtCoder ABC350 A solution" path/to/file.cpp
+python3 scripts/init/github_integration.py push --dry-run
+python3 scripts/init/github_integration.py push
 ```
 
 Stage and commit only explicit paths. Preserve unrelated user changes in the working tree.

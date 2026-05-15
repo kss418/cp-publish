@@ -3,7 +3,7 @@
 Use these rules after platform detection and after resolving repository routing with:
 
 ```text
-scripts/configure_repos.py resolve <platform>
+scripts/init/configure_repos.py resolve <platform>
 ```
 
 The resolved `target_base` is the root for all file placement. Never place a solution outside `target_base`.

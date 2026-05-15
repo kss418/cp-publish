@@ -14,7 +14,13 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-import http_support
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+try:
+    from . import http_support
+except ImportError:
+    import http_support
 
 
 RESOURCE_BASE = "https://kenkoooo.com/atcoder/resources"

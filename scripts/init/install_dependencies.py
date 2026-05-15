@@ -12,7 +12,10 @@ import sys
 from dataclasses import dataclass
 from typing import Any
 
-import check_dependencies
+try:
+    from . import check_dependencies
+except ImportError:
+    import check_dependencies
 
 
 MANUAL_PREFIXES = ("Install ", "Open ")
