@@ -35,6 +35,8 @@ def run(
         cwd=str(cwd) if cwd else None,
         check=check,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         input=input_text,
         stdout=subprocess.PIPE if capture else None,
         stderr=subprocess.PIPE if capture else None,
