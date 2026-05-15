@@ -5,11 +5,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import platform
+import shlex
 import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
+from pathlib import Path
 
 import http_support
 
@@ -59,10 +62,36 @@ HTTPS_PROBES = [
 ]
 
 
+def user_local_tool(name: str) -> Path | None:
+    if platform.system() != "Linux":
+        return None
+    return Path.home() / ".local" / "bin" / name
+
+
+def tool_path(name: str) -> str | None:
+    found = shutil.which(name)
+    if found:
+        return found
+
+    candidate = user_local_tool(name)
+    if candidate and candidate.is_file() and os.access(candidate, os.X_OK):
+        return str(candidate)
+
+    return None
+
+
+def script_command(script_name: str) -> str:
+    script = Path(__file__).resolve().with_name(script_name)
+    return f"{shlex.quote(sys.executable)} {shlex.quote(str(script))}"
+
+
 def command_version(command: list[str]) -> tuple[bool, str | None]:
     executable = command[0]
-    if executable != sys.executable and shutil.which(executable) is None:
-        return False, None
+    if executable != sys.executable:
+        resolved = tool_path(executable)
+        if resolved is None:
+            return False, None
+        command = [resolved, *command[1:]]
 
     result = subprocess.run(
         command,
@@ -127,62 +156,14 @@ def macos_install_commands(name: str) -> list[str]:
 
 
 def linux_gh_install_commands() -> list[str]:
-    if has_tool("brew"):
-        return ["brew install gh"]
-
-    if has_tool("apt"):
-        return [
-            "type -p wget >/dev/null || (sudo apt update && sudo apt install wget -y)",
-            "sudo mkdir -p -m 755 /etc/apt/keyrings",
-            "out=$(mktemp) && wget -nv -O$out https://cli.github.com/packages/githubcli-archive-keyring.gpg && cat $out | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null",
-            "sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg",
-            "sudo mkdir -p -m 755 /etc/apt/sources.list.d",
-            'echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null',
-            "sudo apt update",
-            "sudo apt install gh -y",
-        ]
-
-    if has_tool("dnf5"):
-        return [
-            "sudo dnf install dnf5-plugins -y",
-            "sudo dnf config-manager addrepo --from-repofile=https://cli.github.com/packages/rpm/gh-cli.repo",
-            "sudo dnf install gh --repo gh-cli -y",
-        ]
-
-    if has_tool("dnf"):
-        return [
-            "sudo dnf install 'dnf-command(config-manager)' -y",
-            "sudo dnf config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo",
-            "sudo dnf install gh --repo gh-cli -y",
-        ]
-
-    if has_tool("yum"):
-        return [
-            "type -p yum-config-manager >/dev/null || sudo yum install yum-utils -y",
-            "sudo yum-config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo",
-            "sudo yum install gh -y",
-        ]
-
-    if has_tool("zypper"):
-        return [
-            "sudo zypper addrepo https://cli.github.com/packages/rpm/gh-cli.repo",
-            "sudo zypper ref",
-            "sudo zypper install -y gh",
-        ]
-
-    if has_tool("pacman"):
-        return ["sudo pacman -S --needed github-cli"]
-
-    if has_tool("apk"):
-        return ["sudo apk add github-cli"]
-
-    if has_tool("conda"):
-        return ["conda install gh --channel conda-forge"]
-
-    return ["Open https://github.com/cli/cli/blob/trunk/docs/install_linux.md and choose the command for this distro."]
+    return [script_command("install_gh_user.py")]
 
 
 def linux_git_install_commands() -> list[str]:
+    if has_tool("brew"):
+        return ["brew install git"]
+    if has_tool("conda"):
+        return ["conda install git --channel conda-forge"]
     if has_tool("apt"):
         return ["sudo apt-get install -y git"]
     if has_tool("dnf"):
@@ -195,8 +176,6 @@ def linux_git_install_commands() -> list[str]:
         return ["sudo pacman -S --needed git"]
     if has_tool("apk"):
         return ["sudo apk add git"]
-    if has_tool("brew"):
-        return ["brew install git"]
     return ["Install git with this distro's package manager."]
 
 

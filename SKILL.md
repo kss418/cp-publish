@@ -56,7 +56,7 @@ The dependency installer chooses commands for the current OS and available packa
 
 - Windows: `winget`, `choco`, or `scoop`.
 - macOS: `brew`, MacPorts, or `conda`.
-- Linux: Homebrew, `apt`, `dnf`, `yum`, `zypper`, `pacman`, `apk`, or `conda`.
+- Linux: user-local GitHub CLI install to `~/.local/bin`, Homebrew, `conda`, or distro package managers for dependencies that still require them.
 
 Preview the install plan with:
 
@@ -76,6 +76,10 @@ Ask with the exact command or command sequence from the dry-run output:
 GitHub CLI (`gh`) is required for publishing. May I install it with the command(s) below?
 <install command(s) from scripts/install_dependencies.py --dry-run>
 ```
+
+If the dry-run output marks a plan as `automatic: no` or contains `sudo`/`pkexec`, do not run the installer from Codex, even after approval. Treat those commands as manual OS administration steps: show the exact commands, ask the user to run them in their own terminal, then rerun the dependency check. Never ask for a sudo password, pass a password through `sudo -S`, or leave a command waiting at a password prompt.
+
+On Linux, a missing `gh` should install without sudo through `scripts/install_gh_user.py`, which downloads the official GitHub CLI Linux tarball and places `gh` in `~/.local/bin`. If that directory is not on PATH in the current shell, the helper scripts still resolve that user-local binary directly.
 
 Only after the user approves, run the installer. In Codex-run workflows, use `--yes` only after explicit approval:
 

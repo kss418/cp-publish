@@ -5,13 +5,12 @@ from __future__ import annotations
 
 import argparse
 import os
-import shutil
 import subprocess
 import sys
 import webbrowser
 from pathlib import Path
 
-from check_dependencies import install_command
+from check_dependencies import install_command, tool_path
 
 GITHUB_DEVICE_URL = "https://github.com/login/device"
 
@@ -43,23 +42,24 @@ def run(
     )
 
 
-def require_tool(name: str) -> None:
-    if shutil.which(name) is None:
+def require_tool(name: str) -> str:
+    path = tool_path(name)
+    if path is None:
         hint = install_command(name)
         message = f"Required dependency not found on PATH: {name}"
         if hint:
             message = f"{message}\ninstall_command: {hint}"
         raise CommandError(message)
+    return path
 
 
 def repo_root(start: Path) -> Path:
-    require_tool("git")
-    result = run(["git", "rev-parse", "--show-toplevel"], cwd=start)
+    result = run([require_tool("git"), "rev-parse", "--show-toplevel"], cwd=start)
     return Path(result.stdout.strip()).resolve()
 
 
 def current_branch(root: Path) -> str:
-    result = run(["git", "branch", "--show-current"], cwd=root)
+    result = run([require_tool("git"), "branch", "--show-current"], cwd=root)
     branch = result.stdout.strip()
     if not branch:
         raise CommandError("Detached HEAD is not supported for publishing.")
@@ -67,13 +67,19 @@ def current_branch(root: Path) -> str:
 
 
 def git_porcelain(root: Path) -> list[str]:
-    result = run(["git", "status", "--porcelain"], cwd=root)
+    result = run([require_tool("git"), "status", "--porcelain"], cwd=root)
     return [line for line in result.stdout.splitlines() if line.strip()]
 
 
 def upstream_ref(root: Path) -> str | None:
     result = run(
-        ["git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+        [
+            require_tool("git"),
+            "rev-parse",
+            "--abbrev-ref",
+            "--symbolic-full-name",
+            "@{u}",
+        ],
         cwd=root,
         check=False,
     )
@@ -84,7 +90,11 @@ def upstream_ref(root: Path) -> str | None:
 
 
 def origin_url(root: Path) -> str | None:
-    result = run(["git", "remote", "get-url", "origin"], cwd=root, check=False)
+    result = run(
+        [require_tool("git"), "remote", "get-url", "origin"],
+        cwd=root,
+        check=False,
+    )
     if result.returncode != 0:
         return None
     value = result.stdout.strip()
@@ -92,8 +102,7 @@ def origin_url(root: Path) -> str | None:
 
 
 def gh_auth_status() -> subprocess.CompletedProcess[str]:
-    require_tool("gh")
-    return run(["gh", "auth", "status"], check=False)
+    return run([require_tool("gh"), "auth", "status"], check=False)
 
 
 def open_browser_url(url: str) -> bool:
@@ -114,7 +123,7 @@ def print_device_code_hint() -> None:
 
 
 def gh_auth_login_web(*, open_browser: bool) -> None:
-    require_tool("gh")
+    gh = require_tool("gh")
     if open_browser:
         print(f"Opening GitHub browser login: {GITHUB_DEVICE_URL}")
         if not open_browser_url(GITHUB_DEVICE_URL):
@@ -125,7 +134,7 @@ def gh_auth_login_web(*, open_browser: bool) -> None:
     print_device_code_hint()
 
     run(
-        ["gh", "auth", "login", "--web", "--git-protocol", "https"],
+        [gh, "auth", "login", "--web", "--git-protocol", "https"],
         check=True,
         capture=False,
         input_text="\n",
@@ -147,7 +156,7 @@ def ensure_auth(*, login: bool, setup_git: bool, open_browser: bool = True) -> N
         raise CommandError("GitHub CLI authentication still failed after login.")
 
     if setup_git:
-        run(["gh", "auth", "setup-git"], check=True, capture=False)
+        run([require_tool("gh"), "auth", "setup-git"], check=True, capture=False)
 
 
 def print_status(root: Path) -> None:
@@ -188,13 +197,14 @@ def commit_paths(root: Path, paths: list[str], message: str) -> None:
             raise CommandError(f"Refusing to stage path outside repo: {value}")
         resolved_paths.append(os.path.relpath(path, root))
 
-    run(["git", "add", "--", *resolved_paths], cwd=root, capture=False)
+    git = require_tool("git")
+    run([git, "add", "--", *resolved_paths], cwd=root, capture=False)
 
-    staged = run(["git", "diff", "--cached", "--name-only"], cwd=root).stdout.splitlines()
+    staged = run([git, "diff", "--cached", "--name-only"], cwd=root).stdout.splitlines()
     if not staged:
         raise CommandError("No staged changes to commit.")
 
-    run(["git", "commit", "-m", message], cwd=root, capture=False)
+    run([git, "commit", "-m", message], cwd=root, capture=False)
 
 
 def push_current_branch(root: Path, *, dry_run: bool) -> None:
@@ -206,7 +216,7 @@ def push_current_branch(root: Path, *, dry_run: bool) -> None:
     branch = current_branch(root)
     upstream = upstream_ref(root)
 
-    args = ["git", "push"]
+    args = [require_tool("git"), "push"]
     if dry_run:
         args.append("--dry-run")
     if upstream is None:

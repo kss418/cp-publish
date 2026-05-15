@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import platform
+import re
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -15,6 +16,7 @@ import check_dependencies
 
 
 MANUAL_PREFIXES = ("Install ", "Open ")
+PRIVILEGED_COMMAND_PATTERN = re.compile(r"(^|[\s;&|()])(sudo|pkexec)(?=$|[\s;&|()])")
 
 
 @dataclass(frozen=True)
@@ -27,7 +29,9 @@ class InstallPlan:
 
 
 def is_manual_command(command: str) -> bool:
-    return command.startswith(MANUAL_PREFIXES)
+    return command.startswith(MANUAL_PREFIXES) or bool(
+        PRIVILEGED_COMMAND_PATTERN.search(command)
+    )
 
 
 def command_sequence_for(item: dict[str, Any]) -> list[str]:
@@ -87,6 +91,8 @@ def print_plan(plans: list[InstallPlan]) -> None:
         print(f"- {plan.name}: {plan.purpose}")
         if plan.docs:
             print(f"  docs: {plan.docs}")
+        if plan.manual:
+            print("  automatic: no")
         if plan.commands:
             print("  commands:")
             for command in plan.commands:
