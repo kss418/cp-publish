@@ -110,6 +110,14 @@ python3 scripts/github_integration.py auth --login
 
 Never ask for or store GitHub tokens, passwords, cookies, or credentials in project files, logs, commits, or skill resources.
 
+If `gh auth status` says `not logged in`, `token invalid`, or otherwise fails immediately after a successful browser login, diagnose before deleting credentials or re-running login:
+
+1. Check the structured error with `gh auth status --json hosts`; if the error mentions socket, DNS, connection, or sandbox/network access, treat it as a network validation failure rather than an invalid token.
+2. In Codex sandboxed environments, rerun the same `gh auth status --hostname github.com` command with network escalation before concluding the token is stale.
+3. On Windows, expect the token to be stored in the system keyring/Credential Manager, not visibly in `hosts.yml`; `hosts.yml` may list the host/user while the secret remains in the keyring.
+4. If the user runs `gh` in both Windows and WSL, verify auth separately in each environment because their credential stores are independent.
+5. Use `--insecure-storage` only if the user explicitly approves plaintext token storage after being told the risk.
+
 ## Repository Routing
 
 After GitHub authentication and before identifying the solution file, require repository routing config. Do not infer the target repository from filenames, URLs, or the current directory.
