@@ -110,11 +110,12 @@ def validate_file_targets(
         require_under_repo(target, repo, "target")
         if source == target:
             raise ApplyPlanError(f"Source and target are the same path: {source}")
-        if target.exists() and not target.is_file():
-            raise ApplyPlanError(f"Target exists and is not a file: {target}")
-        if target.exists() and not overwrite:
-            raise ApplyPlanError(f"Target already exists; pass --overwrite to replace it: {target}")
-        changed = True if move else source_target_changed(source, target)
+        changed = source_target_changed(source, target)
+        if changed and target.exists() and not overwrite:
+            raise ApplyPlanError(
+                "Target already exists with different content; "
+                f"pass --overwrite to replace it: {target}"
+            )
         actions.append(
             {
                 "path": str(target),
@@ -191,11 +192,14 @@ def validate_readme_updates(updates: Any, repo: Path) -> list[dict[str, Any]]:
 def copy_or_move_files(
     *,
     source: Path,
-    targets: list[Path],
+    file_actions: list[dict[str, Any]],
     move: bool,
     overwrite: bool,
 ) -> None:
-    for target in targets:
+    for action in file_actions:
+        if not action["changed"]:
+            continue
+        target = resolved_path(action["path"], "target")
         target.parent.mkdir(parents=True, exist_ok=True)
         if target.exists() and overwrite:
             target.unlink()
@@ -278,7 +282,7 @@ def apply_plan(plan: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]
     else:
         copy_or_move_files(
             source=source,
-            targets=targets,
+            file_actions=file_actions,
             move=args.move,
             overwrite=args.overwrite,
         )
