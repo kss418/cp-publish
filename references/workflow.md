@@ -155,7 +155,7 @@ python3 scripts/atcoder_metadata.py problem abc422_a
 python3 scripts/atcoder_metadata.py rating abc422_a
 ```
 
-Use `--refresh` only when the user explicitly requests fresh metadata. If a fetch fails because network access is blocked, request approval to rerun the same command with network access.
+For `plan_publish.py`, use `--refresh-metadata` only when the user explicitly requests fresh metadata. For metadata and result helper scripts, use `--refresh`. If a fetch fails because network access is blocked, request approval to rerun the same command with network access.
 
 Use result scripts when README work needs the user's per-problem wrong attempts and accepted time:
 

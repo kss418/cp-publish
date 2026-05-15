@@ -146,7 +146,7 @@ python3 scripts/apply_plan.py --plan /tmp/cp-plan.json --copy --with-results
 
 Load `references/path-rules.md` when checking placement or target paths. Load `references/readme-format.md` and `references/solution-tags.md` before README-specific edits or tag inference.
 
-Use Codeforces metadata for Codeforces contest names, contest kinds, problem names, and ratings. Use AtCoder/Kenkoooo metadata for AtCoder problem titles and estimated difficulty. Use `--refresh` only when the user explicitly requests fresh metadata.
+Use Codeforces metadata for Codeforces contest names, contest kinds, problem names, and ratings. Use AtCoder/Kenkoooo metadata for AtCoder problem titles and estimated difficulty. For `plan_publish.py`, use `--refresh-metadata` only when the user explicitly requests fresh metadata. For metadata and result helper scripts, use `--refresh`.
 
 If network metadata or result fetches fail because sandbox access is blocked, request approval to rerun the same command with network access. If the user does not approve or the API remains unavailable, continue only when local evidence is sufficient; otherwise ask for confirmation.
 
