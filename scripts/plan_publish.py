@@ -57,6 +57,7 @@ class Detection:
     problem_title: str | None = None
     contest_kind: str | None = None
     contest_title: str | None = None
+    round_number: str | None = None
     evidence: list[str] = field(default_factory=list)
     confidence: str = "none"
 
@@ -151,10 +152,13 @@ def rating_markdown(value: Any) -> str:
 def safe_title_slug(title: str | None) -> str | None:
     if not title:
         return None
-    slug = re.sub(r"[\\/:*?\"<>|]", "", title.strip())
-    slug = re.sub(r"\s+", "_", slug)
+    slug = re.sub(r"[^\w]+", "_", title.strip(), flags=re.UNICODE)
     slug = re.sub(r"_+", "_", slug).strip("._ ")
     return slug or None
+
+
+def leading_problem_id(stem: str) -> str:
+    return stem.split("_", 1)[0]
 
 
 def load_tag_map() -> dict[str, str]:
@@ -374,27 +378,28 @@ def detect_from_path(path: Path) -> Detection:
         if part == "educational" and idx + 3 < len(parts) and parts[idx + 3].isdigit():
             detection.platform = "codeforces"
             detection.contest_kind = "Educational"
-            detection.contest_id = parts[idx + 3]
-            detection.problem_id = path.stem
+            detection.round_number = parts[idx + 3]
+            detection.problem_id = leading_problem_id(path.stem)
             detection.evidence.append("Codeforces Educational path convention")
             detection.confidence = "medium"
             return detection
         if part == "others" and idx + 3 < len(parts) and parts[idx + 3].isdigit():
             detection.platform = "codeforces"
             detection.contest_kind = "Others"
-            detection.contest_id = parts[idx + 3]
-            detection.problem_id = path.stem
+            detection.round_number = parts[idx + 3]
+            detection.problem_id = leading_problem_id(path.stem)
             detection.evidence.append("Codeforces Others path convention")
             detection.confidence = "medium"
             return detection
 
     numeric_parts = [part for part in parts if part.isdigit()]
-    if len(numeric_parts) >= 3 and path.stem and re.fullmatch(r"[a-z][0-9]?", path.stem):
+    problem_id = leading_problem_id(path.stem)
+    if len(numeric_parts) >= 3 and problem_id and re.fullmatch(r"[a-z][0-9]?", problem_id.lower()):
         detection.platform = "codeforces"
-        detection.contest_id = numeric_parts[-1]
-        detection.problem_id = path.stem
+        detection.round_number = numeric_parts[-1]
+        detection.problem_id = problem_id
         detection.evidence.append("Codeforces numeric path convention")
-        detection.confidence = "low"
+        detection.confidence = "medium"
 
     return detection
 
@@ -408,13 +413,22 @@ def merge_detection(base: Detection, incoming: Detection) -> Detection:
         problem_title=base.problem_title,
         contest_kind=base.contest_kind,
         contest_title=base.contest_title,
+        round_number=base.round_number,
         evidence=[*base.evidence],
         confidence=base.confidence,
     )
 
     if confidence_rank[incoming.confidence] > confidence_rank[merged.confidence]:
         merged.confidence = incoming.confidence
-    for attr in ("platform", "contest_id", "problem_id", "problem_title", "contest_kind", "contest_title"):
+    for attr in (
+        "platform",
+        "contest_id",
+        "problem_id",
+        "problem_title",
+        "contest_kind",
+        "contest_title",
+        "round_number",
+    ):
         current = getattr(merged, attr)
         value = getattr(incoming, attr)
         if not current and value:
@@ -438,6 +452,7 @@ def apply_overrides(detection: Detection, args: argparse.Namespace) -> Detection
         problem_title=detection.problem_title,
         contest_kind=detection.contest_kind,
         contest_title=detection.contest_title,
+        round_number=detection.round_number,
         evidence=[*detection.evidence],
         confidence=detection.confidence,
     )
@@ -448,6 +463,7 @@ def apply_overrides(detection: Detection, args: argparse.Namespace) -> Detection
         "problem_title": args.problem_title,
         "contest_kind": args.contest_kind,
         "contest_title": args.contest_title,
+        "round_number": args.round_number,
     }
     for attr, value in overrides.items():
         if value:
@@ -659,6 +675,17 @@ def has_official_codeforces_round_token(title: str) -> bool:
     return re.search(r"\bcodeforces\s+(?:beta\s+)?round\b", title, re.IGNORECASE) is not None
 
 
+def infer_codeforces_kind_from_title(title: str) -> str:
+    lowered = title.lower()
+    if "educational codeforces round" in lowered:
+        return "Educational"
+    if "codeforces global round" in lowered:
+        return "Others"
+    if has_official_codeforces_round_token(title):
+        return "regular"
+    return "Others"
+
+
 def extract_codeforces_round_number(title: str | None, contest_kind: str | None) -> str | None:
     if not title:
         return None
@@ -771,17 +798,61 @@ def classify_codeforces_contest(
         warnings.append("Codeforces contest kind is unknown; pass --contest-kind regular|Educational|Others.")
         return None, None
 
-    lowered = title.lower()
-    if "educational codeforces round" in lowered:
-        return "Educational", title
+    return infer_codeforces_kind_from_title(title), title
 
-    if "codeforces global round" in lowered:
-        return "Others", title
 
-    if has_official_codeforces_round_token(title):
-        return "regular", title
+def resolve_codeforces_detection_by_round(
+    detection: Detection,
+    metadata: dict[str, Any],
+    warnings: list[str],
+) -> None:
+    if detection.contest_id or not detection.round_number or not detection.problem_id:
+        return
 
-    return "Others", title
+    contests = metadata.get("contests") or []
+    candidates: list[tuple[str, str, str]] = []
+    for contest in contests:
+        contest_id = contest.get("id")
+        title = contest.get("name")
+        if not isinstance(contest_id, int) or not isinstance(title, str):
+            continue
+
+        contest_kind = infer_codeforces_kind_from_title(title)
+        if detection.contest_kind and contest_kind != detection.contest_kind:
+            continue
+
+        round_number = extract_codeforces_round_number(title, contest_kind)
+        if round_number != detection.round_number:
+            continue
+
+        if not find_codeforces_problem(str(contest_id), detection.problem_id, metadata):
+            continue
+
+        candidates.append((str(contest_id), contest_kind, title))
+
+    if len(candidates) == 1:
+        contest_id, contest_kind, title = candidates[0]
+        detection.contest_id = contest_id
+        detection.contest_kind = detection.contest_kind or contest_kind
+        detection.contest_title = detection.contest_title or title
+        detection.evidence.append(
+            f"Codeforces metadata matched round {detection.round_number} to contest {contest_id}"
+        )
+        detection.confidence = "high"
+        return
+
+    if not candidates:
+        warnings.append(
+            f"Could not match Codeforces round {detection.round_number} problem "
+            f"{normalize_codeforces_problem_id(detection.problem_id)} to a contest ID from metadata."
+        )
+        return
+
+    warnings.append(
+        f"Codeforces round {detection.round_number} problem "
+        f"{normalize_codeforces_problem_id(detection.problem_id)} matched multiple contest IDs: "
+        + ", ".join(contest_id for contest_id, _kind, _title in candidates)
+    )
 
 
 def resolve_codeforces_round_number(target: CodeforcesTarget) -> str | None:
@@ -1004,7 +1075,7 @@ def plan_codeforces(
         problem_id=detection.problem_id,
         contest_kind=main_kind,
         contest_title=main_title,
-        round_number=args.round_number,
+        round_number=args.round_number or detection.round_number,
         contest_group=args.contest_group,
     )
     targets = [main_target]
@@ -1106,7 +1177,13 @@ def collect_tags(args: argparse.Namespace) -> str | None:
 
 
 def source_is_weak(source: Path, detection: Detection) -> bool:
-    return detection.confidence in {"none", "low"} or source.stem.lower() in WEAK_FILE_STEMS
+    if detection.confidence in {"none", "low"}:
+        return True
+    if detection.confidence == "high":
+        return False
+    return source.stem.lower() in WEAK_FILE_STEMS and not any(
+        "path convention" in evidence.lower() for evidence in detection.evidence
+    )
 
 
 def check_target_conflicts(targets: list[str], warnings: list[str]) -> bool:
@@ -1138,6 +1215,9 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     detection.platform = detection.platform.lower()
     if detection.platform not in SUPPORTED_PLATFORMS:
         raise PlanError(f"Unsupported platform: {detection.platform}")
+    if detection.platform == "codeforces" and not detection.contest_id and detection.round_number:
+        metadata = load_codeforces_metadata(args.no_metadata, args.refresh_metadata, warnings)
+        resolve_codeforces_detection_by_round(detection, metadata, warnings)
     if not detection.contest_id or not detection.problem_id:
         raise PlanError("Could not detect contest/problem. Pass --contest-id and --problem-id.")
 
@@ -1191,6 +1271,7 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
             "problem_title": platform_plan["metadata"].get("problem_title"),
             "contest_kind": detection.contest_kind,
             "contest_title": detection.contest_title,
+            "round_number": detection.round_number,
             "confidence": detection.confidence,
             "evidence": detection.evidence,
         },

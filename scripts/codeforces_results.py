@@ -15,6 +15,7 @@ from plan_publish import extract_codeforces_round_number
 
 
 NON_PENALTY_VERDICTS = {"COMPILATION_ERROR", "SKIPPED", "TESTING"}
+NON_CONTEST_PARTICIPANT_TYPES = {"PRACTICE", "VIRTUAL"}
 
 
 class CodeforcesResultsError(RuntimeError):
@@ -148,26 +149,52 @@ def normalized_from_submissions(
     source: dict[str, Any],
 ) -> dict[str, Any]:
     start_time = int_or_none(contest.get("startTimeSeconds")) or 0
+    duration = int_or_none(contest.get("durationSeconds"))
     by_problem: dict[str, list[dict[str, Any]]] = {}
     for submission in submissions:
+        author = submission.get("author")
+        participant_type = author.get("participantType") if isinstance(author, dict) else None
+        if participant_type in NON_CONTEST_PARTICIPANT_TYPES:
+            continue
+
         problem = submission.get("problem")
         if not isinstance(problem, dict):
             continue
+
+        relative_time = int_or_none(submission.get("relativeTimeSeconds"))
+        creation_time = int_or_none(submission.get("creationTimeSeconds"))
+        if relative_time is not None and relative_time >= 0 and (
+            duration is None or relative_time <= duration
+        ):
+            contest_second = relative_time
+        elif creation_time is not None:
+            contest_second = creation_time - start_time
+            if contest_second < 0 or (duration is not None and contest_second > duration):
+                continue
+        else:
+            continue
+
         index = str(problem.get("index", "")).upper()
         if index:
-            by_problem.setdefault(index, []).append(submission)
+            item = dict(submission)
+            item["_contest_second"] = contest_second
+            by_problem.setdefault(index, []).append(item)
+
+    if not any(by_problem.values()):
+        raise CodeforcesResultsError(
+            f"No contest-time submissions found for {handle!r} in contest {contest.get('id')}."
+        )
 
     normalized_problems: list[dict[str, Any]] = []
     for problem in problems:
         index = problem_id(problem)
         wrong_attempts = 0
         accepted_at: int | None = None
-        for submission in sorted(by_problem.get(index, []), key=lambda item: item.get("creationTimeSeconds", 0)):
+        for submission in sorted(by_problem.get(index, []), key=lambda item: item.get("_contest_second", 0)):
             if accepted_at is not None:
                 break
             if submission.get("verdict") == "OK":
-                creation_time = int_or_none(submission.get("creationTimeSeconds"))
-                accepted_at = max(0, creation_time - start_time) if creation_time is not None else None
+                accepted_at = int_or_none(submission.get("_contest_second"))
             elif should_count_wrong_submission(submission):
                 wrong_attempts += 1
         normalized_problems.append(
@@ -200,7 +227,7 @@ def normalized_from_submissions(
 def get_contest_result(args: argparse.Namespace) -> dict[str, Any]:
     standings_data = load_method(
         "contest.standings",
-        {"contestId": args.contest_id, "handles": args.user, "showUnofficial": True},
+        {"contestId": args.contest_id},
         args,
     )
     result = standings_data.get("result")
