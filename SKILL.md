@@ -33,6 +33,23 @@ Require these dependencies:
 - `gh`: check GitHub authentication and configure git credentials.
 - `python`: run the helper scripts in this skill.
 
+When a metadata or result fetch fails with `CERTIFICATE_VERIFY_FAILED`, diagnose Python HTTPS
+trust before retrying the publish workflow:
+
+```powershell
+python scripts/check_dependencies.py --https
+```
+
+```sh
+python3 scripts/check_dependencies.py --https
+```
+
+The network scripts use `scripts/http_support.py` to keep TLS verification enabled while
+discovering usable CA bundles from common Python, certifi, MSYS2, Homebrew, and Linux paths.
+Do not bypass this by disabling TLS verification. If `--https` reports no usable CA bundle,
+install/update CA certificates or set `SSL_CERT_FILE` to the CA bundle suggested by the
+diagnostic output.
+
 If any required dependency is missing, stop the publish workflow before modifying files, committing, or pushing. Use `scripts/install_dependencies.py --dry-run` to show the missing dependencies and the exact install command or command sequence.
 
 The dependency installer chooses commands for the current OS and available package manager:

@@ -14,6 +14,8 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
+import http_support
+
 
 RESOURCE_BASE = "https://kenkoooo.com/atcoder/resources"
 DEFAULT_MAX_AGE_SECONDS = 24 * 60 * 60
@@ -86,12 +88,14 @@ def fetch_resource(resource: str, timeout: int) -> dict[str, Any]:
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
 
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with http_support.open_url(request, timeout=timeout) as response:
             body = response.read().decode("utf-8")
     except urllib.error.HTTPError as exc:
         raise AtCoderMetadataError(f"AtCoder metadata HTTP {exc.code}: {url}") from exc
     except urllib.error.URLError as exc:
-        raise AtCoderMetadataError(f"Failed to reach AtCoder metadata: {exc.reason}") from exc
+        raise AtCoderMetadataError(
+            f"Failed to reach AtCoder metadata: {http_support.format_url_error(exc)}"
+        ) from exc
     except TimeoutError as exc:
         raise AtCoderMetadataError("Timed out while fetching AtCoder metadata.") from exc
 

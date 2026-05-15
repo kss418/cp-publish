@@ -11,6 +11,8 @@ import subprocess
 import sys
 from dataclasses import dataclass
 
+import http_support
+
 
 @dataclass(frozen=True)
 class Dependency:
@@ -49,6 +51,12 @@ INSTALL_DOCS = {
         "Linux": "https://github.com/cli/cli/blob/trunk/docs/install_linux.md",
     },
 }
+
+HTTPS_PROBES = [
+    ("codeforces", "https://codeforces.com/api/user.info?handles=tourist"),
+    ("kenkoooo", "https://kenkoooo.com/atcoder/resources/contests.json"),
+    ("atcoder", "https://atcoder.jp/"),
+]
 
 
 def command_version(command: list[str]) -> tuple[bool, str | None]:
@@ -240,6 +248,20 @@ def check_all() -> list[dict[str, object]]:
     return results
 
 
+def check_https(timeout: int) -> dict[str, object]:
+    probes = []
+    for name, url in HTTPS_PROBES:
+        result = http_support.probe_https(url, timeout=timeout)
+        result["name"] = name
+        probes.append(result)
+
+    return {
+        "ok": all(bool(item["ok"]) for item in probes),
+        "probes": probes,
+        "diagnostics": http_support.https_diagnostics(),
+    }
+
+
 def print_text(results: list[dict[str, object]]) -> None:
     for item in results:
         status = "ok" if item["ok"] else "missing"
@@ -258,25 +280,67 @@ def print_text(results: list[dict[str, object]]) -> None:
             print(f"  docs: {item['install_docs']}")
 
 
+def print_https(result: dict[str, object]) -> None:
+    print("https: ok" if result["ok"] else "https: failed")
+
+    diagnostics = result["diagnostics"]
+    assert isinstance(diagnostics, dict)
+    print(f"  python: {diagnostics['python']}")
+    print(f"  openssl: {diagnostics['openssl']}")
+    print(f"  selected_ca_bundle: {diagnostics['selected_ca_bundle'] or '(default)'}")
+
+    probes = result["probes"]
+    assert isinstance(probes, list)
+    for item in probes:
+        assert isinstance(item, dict)
+        status = "tls ok" if item["ok"] else "failed"
+        print(f"  {item['name']}: {status}")
+        print(f"    url: {item['url']}")
+        if item["status"]:
+            print(f"    http_status: {item['status']}")
+        if item["error"]:
+            print("    error:")
+            for line in str(item["error"]).splitlines():
+                print(f"      {line}")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Check CP publish workflow dependencies.")
     parser.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+    parser.add_argument(
+        "--https",
+        action="store_true",
+        help="Also verify Python HTTPS/TLS access to Codeforces, Kenkoooo, and AtCoder.",
+    )
+    parser.add_argument(
+        "--https-timeout",
+        type=int,
+        default=10,
+        help="HTTPS probe timeout in seconds. Used only with --https.",
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     results = check_all()
+    https_result = check_https(args.https_timeout) if args.https else None
 
     if args.json:
-        print(json.dumps({"dependencies": results}, indent=2))
+        payload: dict[str, object] = {"dependencies": results}
+        if https_result is not None:
+            payload["https"] = https_result
+        print(json.dumps(payload, indent=2))
     else:
         print_text(results)
+        if https_result is not None:
+            print_https(https_result)
 
     missing_required = [
         item["name"] for item in results if item["required"] and not item["ok"]
     ]
-    return 1 if missing_required else 0
+    https_failed = https_result is not None and not bool(https_result["ok"])
+    return 1 if missing_required or https_failed else 0
 
 
 if __name__ == "__main__":

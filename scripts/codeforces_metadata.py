@@ -16,6 +16,8 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
+import http_support
+
 
 API_BASE = "https://codeforces.com/api"
 DEFAULT_MAX_AGE_SECONDS = 24 * 60 * 60
@@ -97,12 +99,14 @@ def fetch_api(method: str, params: dict[str, str], timeout: int) -> dict[str, An
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
 
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with http_support.open_url(request, timeout=timeout) as response:
             body = response.read().decode("utf-8")
     except urllib.error.HTTPError as exc:
         raise CodeforcesApiError(f"Codeforces API HTTP {exc.code}: {url}") from exc
     except urllib.error.URLError as exc:
-        raise CodeforcesApiError(f"Failed to reach Codeforces API: {exc.reason}") from exc
+        raise CodeforcesApiError(
+            f"Failed to reach Codeforces API: {http_support.format_url_error(exc)}"
+        ) from exc
     except TimeoutError as exc:
         raise CodeforcesApiError("Timed out while calling Codeforces API.") from exc
 

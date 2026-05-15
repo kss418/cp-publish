@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 import atcoder_metadata
+import http_support
 
 
 ATCODER_CONTEST_BASE = "https://atcoder.jp/contests"
@@ -71,12 +72,14 @@ def fetch_json(url: str, timeout: int) -> dict[str, Any]:
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
 
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with http_support.open_url(request, timeout=timeout) as response:
             body = response.read().decode("utf-8")
     except urllib.error.HTTPError as exc:
         raise AtCoderResultsError(f"AtCoder results API HTTP {exc.code}: {url}") from exc
     except urllib.error.URLError as exc:
-        raise AtCoderResultsError(f"Failed to reach AtCoder results API: {exc.reason}") from exc
+        raise AtCoderResultsError(
+            f"Failed to reach AtCoder results API: {http_support.format_url_error(exc)}"
+        ) from exc
     except TimeoutError as exc:
         raise AtCoderResultsError("Timed out while fetching AtCoder results.") from exc
 
