@@ -96,6 +96,8 @@ python scripts/github_integration.py auth
 python3 scripts/github_integration.py auth
 ```
 
+In Codex-run workflows, run GitHub authentication checks with network escalation from the first attempt. `gh auth status` often needs network and OS credential-store access, so do not first run these auth checks in the sandbox and then retry only after they fail.
+
 If authentication is missing and the user approves an interactive login, use:
 
 ```powershell
@@ -105,6 +107,8 @@ python scripts/github_integration.py auth --login
 ```sh
 python3 scripts/github_integration.py auth --login
 ```
+
+In Codex-run workflows, request network escalation for `auth --login` before running it. Before starting the login, explicitly tell the user that GitHub will ask for a one-time code and that the code is printed in the shell command output. If they do not see the code in the chat, they should open or click the running command output/terminal panel and copy the code from there.
 
 `auth --login` asks Codex/Python to open `https://github.com/login/device`, then starts a browser-based GitHub CLI login and automatically sends the initial Enter key that `gh auth login --web` normally waits for. If the browser cannot be opened by the OS, follow the URL/code printed by `gh`. Use `--no-open-browser` only in a headless environment.
 

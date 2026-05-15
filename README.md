@@ -107,7 +107,9 @@ references/
 
 빠진 의존성이 있으면 Codex가 설치 계획을 보여주고 사용자에게 설치해도 되는지 먼저 묻습니다. 승인된 경우에만 `scripts/install_dependencies.py`를 실행합니다.
 
-GitHub 로그인이 필요할 때도 Codex가 먼저 확인을 요청한 뒤 브라우저 기반 `gh auth login --web` 흐름을 실행합니다. 이때 Codex/Python이 `https://github.com/login/device`를 먼저 열고, 이어서 GitHub CLI 로그인을 진행합니다. 이 스킬은 GitHub 토큰, 비밀번호, 쿠키를 파일에 저장하지 않습니다.
+GitHub 인증 확인과 로그인은 Codex가 처음부터 네트워크 권한 상승으로 실행하도록 안내합니다. 샌드박스 안에서 먼저 실패한 뒤 다시 시도하지 않도록, `gh auth status`와 브라우저 기반 `gh auth login --web` 흐름 모두 처음부터 권한 상승을 요청합니다.
+
+GitHub 로그인이 필요할 때도 Codex가 먼저 확인을 요청한 뒤 브라우저 기반 `gh auth login --web` 흐름을 실행합니다. 이때 Codex/Python이 `https://github.com/login/device`를 먼저 열고, 이어서 GitHub CLI 로그인을 진행합니다. GitHub가 일회용 인증 코드를 요구하면 그 코드는 Codex가 실행한 셸 명령 출력에 표시됩니다. 채팅창에서 코드가 바로 보이지 않으면 실행 중인 명령 출력/터미널 패널을 클릭해서 코드를 확인해야 합니다. 이 스킬은 GitHub 토큰, 비밀번호, 쿠키를 파일에 저장하지 않습니다.
 
 직접 점검하고 싶을 때만 아래 명령을 사용하면 됩니다.
 

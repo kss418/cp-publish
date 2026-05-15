@@ -104,6 +104,15 @@ def open_browser_url(url: str) -> bool:
     return False
 
 
+def print_device_code_hint() -> None:
+    print(
+        "When GitHub asks for a one-time code, copy it from the terminal output below."
+    )
+    print(
+        "In Codex, open or click the command output/terminal panel if the code is not visible in chat."
+    )
+
+
 def gh_auth_login_web(*, open_browser: bool) -> None:
     require_tool("gh")
     if open_browser:
@@ -112,6 +121,8 @@ def gh_auth_login_web(*, open_browser: bool) -> None:
             print(f"Open this URL manually if no browser appears: {GITHUB_DEVICE_URL}", file=sys.stderr)
     else:
         print("Starting GitHub browser login...")
+
+    print_device_code_hint()
 
     run(
         ["gh", "auth", "login", "--web", "--git-protocol", "https"],
