@@ -87,7 +87,10 @@ def codeforces_problemset(metadata: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def find_codeforces_problem(contest_id: str, problem_id: str, metadata: dict[str, Any]) -> dict[str, Any] | None:
-    wanted_contest = int(contest_id)
+    try:
+        wanted_contest = int(contest_id)
+    except ValueError:
+        return None
     wanted_index = normalize_codeforces_problem_id(problem_id)
     for problem in codeforces_problemset(metadata):
         if problem.get("contestId") == wanted_contest and str(problem.get("index", "")).upper() == wanted_index:
@@ -114,7 +117,10 @@ def codeforces_problem_title(contest_id: str, problem_id: str, metadata: dict[st
 
 def find_codeforces_contest(contest_id: str, metadata: dict[str, Any]) -> dict[str, Any] | None:
     contests = metadata.get("contests") or []
-    wanted = int(contest_id)
+    try:
+        wanted = int(contest_id)
+    except ValueError:
+        return None
     for contest in contests:
         if contest.get("id") == wanted:
             return contest

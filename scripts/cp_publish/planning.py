@@ -31,6 +31,7 @@ from .paths import (
     build_atcoder_target,
     build_codeforces_target,
     normalize_atcoder_problem_id,
+    normalize_codeforces_contest_id,
     normalize_codeforces_problem_id,
     normalize_ext,
     parse_additional_target,
@@ -356,6 +357,8 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         resolve_codeforces_detection_by_round(detection, metadata, warnings)
     if not detection.contest_id or not detection.problem_id:
         raise PlanError("Could not detect contest/problem. Pass --contest-id and --problem-id.")
+    if detection.platform == "codeforces":
+        detection.contest_id = normalize_codeforces_contest_id(detection.contest_id)
 
     route = load_route(detection.platform, args.config)
     warnings.extend(route.warnings)

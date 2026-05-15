@@ -24,6 +24,13 @@ def normalize_codeforces_problem_id(problem_id: str) -> str:
     return problem_id.strip().upper()
 
 
+def normalize_codeforces_contest_id(value: str) -> str:
+    cleaned = value.strip()
+    if not re.fullmatch(r"\d+", cleaned):
+        raise PlanError(f"Codeforces contest id must be numeric, got: {value!r}")
+    return str(int(cleaned))
+
+
 def normalize_codeforces_kind(value: str) -> str:
     lowered = value.strip().lower()
     if lowered == "regular":
@@ -316,7 +323,7 @@ def parse_additional_target(raw: str, default_kind: str | None) -> CodeforcesTar
         except argparse.ArgumentTypeError as exc:
             raise PlanError(str(exc)) from exc
     return CodeforcesTarget(
-        contest_id=parts[0],
+        contest_id=normalize_codeforces_contest_id(parts[0]),
         problem_id=parts[1],
         contest_kind=kind,
         round_number=round_number,
