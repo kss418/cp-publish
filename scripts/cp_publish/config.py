@@ -7,6 +7,24 @@ import configure_repos
 from .models import PlanError, Route
 
 
+def relevant_validation_errors(
+    platform: str, repo_name: str | None, errors: list[str]
+) -> list[str]:
+    relevant: list[str] = []
+    for error in errors:
+        if error.startswith(("version ", "repositories must ", "routes must ", "users must ")):
+            relevant.append(error)
+        elif error.startswith(f"route {platform} "):
+            relevant.append(error)
+        elif repo_name and error.startswith(f"repository {repo_name} "):
+            relevant.append(error)
+        elif repo_name and error == f"invalid repository name: {repo_name}":
+            relevant.append(error)
+        elif error.startswith(f"user id for {platform} "):
+            relevant.append(error)
+    return relevant
+
+
 def relevant_validation_warnings(
     platform: str, repo_name: str | None, warnings: list[str]
 ) -> list[str]:
@@ -35,20 +53,23 @@ def load_route(platform: str, config_path: str | None) -> Route:
         raise PlanError(str(exc)) from exc
 
     errors, validation_warnings = configure_repos.validate_config(config)
-    if errors:
-        raise PlanError("; ".join(errors))
+    routes = config.get("routes") if isinstance(config.get("routes"), dict) else {}
+    route = routes.get(platform)
+    repo_name = route.get("repo") if isinstance(route, dict) else None
 
-    route = (config.get("routes") or {}).get(platform)
-    if not route:
+    relevant_errors = relevant_validation_errors(platform, repo_name, errors)
+    if relevant_errors:
+        raise PlanError("; ".join(relevant_errors))
+
+    if not isinstance(route, dict):
         raise PlanError(
             f"No configured route for {platform}. Run scripts/configure_repos.py init --platform {platform} first."
         )
 
-    repos = config.get("repositories") or {}
-    users = config.get("users") or {}
-    repo_name = route.get("repo")
+    repos = config.get("repositories") if isinstance(config.get("repositories"), dict) else {}
+    users = config.get("users") if isinstance(config.get("users"), dict) else {}
     repo = repos.get(repo_name)
-    if not repo:
+    if not isinstance(repo, dict):
         raise PlanError(f"Route for {platform} references missing repository {repo_name!r}.")
 
     repo_path = configure_repos.normalize_repo_path(repo.get("path", ""))
