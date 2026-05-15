@@ -58,6 +58,7 @@ class Detection:
     contest_kind: str | None = None
     contest_title: str | None = None
     round_number: str | None = None
+    contest_group: str | None = None
     evidence: list[str] = field(default_factory=list)
     confidence: str = "none"
 
@@ -353,7 +354,8 @@ def detect_from_filename(path: Path) -> Detection:
 
 
 def detect_from_path(path: Path) -> Detection:
-    parts = [part.lower() for part in path.parts]
+    raw_parts = list(path.parts)
+    parts = [part.lower() for part in raw_parts]
     detection = Detection()
 
     for idx, part in enumerate(parts):
@@ -383,12 +385,15 @@ def detect_from_path(path: Path) -> Detection:
             detection.evidence.append("Codeforces Educational path convention")
             detection.confidence = "medium"
             return detection
-        if part == "others" and idx + 3 < len(parts) and parts[idx + 3].isdigit():
+        if part == "others" and idx + 4 < len(parts) and parts[idx + 4].isdigit():
             detection.platform = "codeforces"
             detection.contest_kind = "Others"
-            detection.round_number = parts[idx + 3]
+            detection.contest_group = normalize_codeforces_contest_group(raw_parts[idx + 1])
+            detection.round_number = parts[idx + 4]
             detection.problem_id = leading_problem_id(path.stem)
-            detection.evidence.append("Codeforces Others path convention")
+            detection.evidence.append(
+                f"Detected Codeforces Others round {parts[idx + 4]} from path"
+            )
             detection.confidence = "medium"
             return detection
 
@@ -414,6 +419,7 @@ def merge_detection(base: Detection, incoming: Detection) -> Detection:
         contest_kind=base.contest_kind,
         contest_title=base.contest_title,
         round_number=base.round_number,
+        contest_group=base.contest_group,
         evidence=[*base.evidence],
         confidence=base.confidence,
     )
@@ -428,6 +434,7 @@ def merge_detection(base: Detection, incoming: Detection) -> Detection:
         "contest_kind",
         "contest_title",
         "round_number",
+        "contest_group",
     ):
         current = getattr(merged, attr)
         value = getattr(incoming, attr)
@@ -453,6 +460,7 @@ def apply_overrides(detection: Detection, args: argparse.Namespace) -> Detection
         contest_kind=detection.contest_kind,
         contest_title=detection.contest_title,
         round_number=detection.round_number,
+        contest_group=detection.contest_group,
         evidence=[*detection.evidence],
         confidence=detection.confidence,
     )
@@ -464,6 +472,7 @@ def apply_overrides(detection: Detection, args: argparse.Namespace) -> Detection
         "contest_kind": args.contest_kind,
         "contest_title": args.contest_title,
         "round_number": args.round_number,
+        "contest_group": args.contest_group,
     }
     for attr, value in overrides.items():
         if value:
@@ -1076,7 +1085,7 @@ def plan_codeforces(
         contest_kind=main_kind,
         contest_title=main_title,
         round_number=args.round_number or detection.round_number,
-        contest_group=args.contest_group,
+        contest_group=args.contest_group or detection.contest_group,
     )
     targets = [main_target]
     for raw in args.additional_target:
@@ -1272,6 +1281,7 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
             "contest_kind": detection.contest_kind,
             "contest_title": detection.contest_title,
             "round_number": detection.round_number,
+            "contest_group": detection.contest_group,
             "confidence": detection.confidence,
             "evidence": detection.evidence,
         },
