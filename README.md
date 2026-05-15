@@ -382,7 +382,8 @@ agents/openai.yaml               # Codex UI 표시용 메타데이터
 scripts/check_dependencies.py    # 의존성 확인
 scripts/install_dependencies.py  # 승인 후 의존성 설치
 scripts/configure_repos.py       # 저장소 라우팅 설정
-scripts/plan_publish.py          # publish 전 dry-run 계획 생성
+scripts/plan_publish.py          # publish 전 dry-run 계획 CLI
+scripts/cp_publish/              # detection, path, metadata, planning support modules
 scripts/update_readme.py         # contest README 갱신
 scripts/github_integration.py    # GitHub 인증, commit, push 보조
 scripts/atcoder_metadata.py      # AtCoder 메타데이터 조회

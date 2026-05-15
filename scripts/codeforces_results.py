@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 import codeforces_metadata
-from plan_publish import extract_codeforces_round_number
+from cp_publish.paths import extract_codeforces_round_number
 
 
 NON_PENALTY_VERDICTS = {"COMPILATION_ERROR", "SKIPPED", "TESTING"}
