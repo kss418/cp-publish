@@ -248,7 +248,7 @@ Windows:
 ```powershell
 python scripts/plan_publish.py C:\path\to\solution.cpp --tags DP,Greedy > C:\path\to\cp-plan.json
 python scripts/apply_plan.py --plan C:\path\to\cp-plan.json --copy --dry-run
-python scripts/apply_plan.py --plan C:\path\to\cp-plan.json --copy
+python scripts/apply_plan.py --plan C:\path\to\cp-plan.json --copy --with-results
 ```
 
 macOS / Linux:
@@ -256,10 +256,10 @@ macOS / Linux:
 ```sh
 python3 scripts/plan_publish.py /path/to/solution.cpp --tags DP,Greedy > /tmp/cp-plan.json
 python3 scripts/apply_plan.py --plan /tmp/cp-plan.json --copy --dry-run
-python3 scripts/apply_plan.py --plan /tmp/cp-plan.json --copy
+python3 scripts/apply_plan.py --plan /tmp/cp-plan.json --copy --with-results
 ```
 
-`apply_plan.py`는 source file 존재 여부, target parent 생성, copy/move, README 갱신, 변경 path 목록, commit 대상 path 목록을 JSON으로 출력합니다.
+`apply_plan.py`는 source file 존재 여부, target parent 생성, copy/move, README 갱신, 변경 path 목록, commit 대상 path 목록을 JSON으로 출력합니다. `--with-results`를 주면 plan의 `contest_result_command`를 실행해서 가능한 경우 `## Results` 표도 함께 갱신합니다. 결과 조회 실패는 warning으로 남기고 풀이 항목은 계속 갱신합니다. 결과 조회 실패 시 전체 apply를 실패시키려면 `--require-results`를 사용합니다.
 
 `needs_confirmation`이 `true`이면 실제 변경 전에 사용자의 확인이 필요합니다.
 

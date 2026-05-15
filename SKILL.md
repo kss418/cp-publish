@@ -131,16 +131,16 @@ Use `scripts/apply_plan.py` instead of hand-composing copy/move and README comma
 ```powershell
 python scripts/plan_publish.py C:\path\to\solution.cpp --tags DP,Greedy > C:\path\to\cp-plan.json
 python scripts/apply_plan.py --plan C:\path\to\cp-plan.json --copy --dry-run
-python scripts/apply_plan.py --plan C:\path\to\cp-plan.json --copy
+python scripts/apply_plan.py --plan C:\path\to\cp-plan.json --copy --with-results
 ```
 
 ```sh
 python3 scripts/plan_publish.py /path/to/solution.cpp --tags DP,Greedy > /tmp/cp-plan.json
 python3 scripts/apply_plan.py --plan /tmp/cp-plan.json --copy --dry-run
-python3 scripts/apply_plan.py --plan /tmp/cp-plan.json --copy
+python3 scripts/apply_plan.py --plan /tmp/cp-plan.json --copy --with-results
 ```
 
-`apply_plan.py` verifies the source file, creates target parents, copies or moves the solution, calls `scripts/update_readme.py`, and prints `changed_paths` plus `commit_paths`. For multiple Codeforces targets, copy the same source to every target; do not move to only one target.
+`apply_plan.py` verifies the source file, creates target parents, copies or moves the solution, calls `scripts/update_readme.py`, and prints `changed_paths` plus `commit_paths`. Use `--with-results` to fetch contest results from the plan and update the README `## Results` table when possible. Use `--require-results` only when a result fetch failure should fail the apply. For multiple Codeforces targets, copy the same source to every target; do not move to only one target.
 
 ## Metadata And README Rules
 

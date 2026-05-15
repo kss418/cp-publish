@@ -10,6 +10,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -86,6 +87,10 @@ def unique(values: list[str]) -> list[str]:
     return list(dict.fromkeys(values))
 
 
+def skill_root() -> Path:
+    return Path(__file__).resolve().parent.parent
+
+
 def source_target_changed(source: Path, target: Path) -> bool:
     if not target.exists():
         return True
@@ -150,9 +155,121 @@ def build_update_readme_args(update: dict[str, Any], *, dry_run: bool) -> list[s
     tags = update.get("tags")
     if isinstance(tags, str) and tags:
         command.extend(["--tags", tags])
+    results_json = update.get("_results_json")
+    if isinstance(results_json, str) and results_json:
+        command.extend(["--results-json", results_json])
     if dry_run:
         command.append("--dry-run")
     return command
+
+
+def normalize_command(value: Any, field_name: str) -> list[str] | None:
+    if value is None:
+        return None
+    if not isinstance(value, list) or not value:
+        raise ApplyPlanError(f"Plan field {field_name!r} must be a non-empty command list.")
+    command: list[str] = []
+    for item in value:
+        if not isinstance(item, str) or not item:
+            raise ApplyPlanError(f"Plan field {field_name!r} must contain only non-empty strings.")
+        command.append(item)
+    return command
+
+
+def fetch_result_json(
+    *,
+    command: list[str],
+    temp_dir: Path,
+) -> tuple[Path, dict[str, Any]]:
+    result = subprocess.run(
+        command,
+        cwd=str(skill_root()),
+        check=False,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout).strip()
+        raise ApplyPlanError(detail or f"result command failed with exit code {result.returncode}")
+
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise ApplyPlanError(f"result command returned invalid JSON: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise ApplyPlanError("result command returned a non-object JSON payload.")
+
+    path = temp_dir / f"contest-results-{len(list(temp_dir.iterdir())) + 1}.json"
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return path, payload
+
+
+def prepare_readme_updates(
+    updates: list[dict[str, Any]],
+    *,
+    with_results: bool,
+    require_results: bool,
+    temp_dir: Path,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[str]]:
+    prepared_updates: list[dict[str, Any]] = []
+    result_fetches: list[dict[str, Any]] = []
+    warnings: list[str] = []
+    cache: dict[tuple[str, ...], tuple[Path, dict[str, Any]]] = {}
+
+    for index, update in enumerate(updates):
+        prepared = dict(update)
+        prepared_updates.append(prepared)
+
+        if not with_results:
+            continue
+
+        field_name = f"readme_updates[{index}].contest_result_command"
+        command = normalize_command(update.get("contest_result_command"), field_name)
+        readme = str(update.get("readme", ""))
+        if command is None:
+            message = f"No contest result command is available for README update: {readme}"
+            if require_results:
+                raise ApplyPlanError(message)
+            warnings.append(message)
+            result_fetches.append({"readme": readme, "status": "skipped", "reason": message})
+            continue
+
+        key = tuple(command)
+        try:
+            if key not in cache:
+                cache[key] = fetch_result_json(command=command, temp_dir=temp_dir)
+            results_path, payload = cache[key]
+        except ApplyPlanError as exc:
+            message = f"Contest result fetch failed for {readme}: {exc}"
+            if require_results:
+                raise ApplyPlanError(message) from exc
+            warnings.append(message)
+            result_fetches.append(
+                {
+                    "readme": readme,
+                    "status": "failed",
+                    "command": command,
+                    "error": str(exc),
+                }
+            )
+            continue
+
+        prepared["_results_json"] = str(results_path)
+        problems = payload.get("problems")
+        problem_count = len(problems) if isinstance(problems, list) else None
+        result_fetches.append(
+            {
+                "readme": readme,
+                "status": "ok",
+                "command": command,
+                "problem_count": problem_count,
+            }
+        )
+
+    return prepared_updates, result_fetches, warnings
 
 
 def run_update_readme(update: dict[str, Any], *, dry_run: bool) -> dict[str, Any]:
@@ -276,17 +393,34 @@ def apply_plan(plan: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]
         overwrite=args.overwrite,
     )
 
-    readme_preflight = [run_update_readme(update, dry_run=True) for update in readme_updates]
-    if args.dry_run:
-        readme_results = readme_preflight
-    else:
-        copy_or_move_files(
-            source=source,
-            file_actions=file_actions,
-            move=args.move,
-            overwrite=args.overwrite,
+    result_fetches: list[dict[str, Any]] = []
+    warnings: list[str] = []
+    with_results = args.with_results or args.require_results
+
+    with tempfile.TemporaryDirectory(prefix="cp-publish-results-") as temp_dir_name:
+        prepared_readme_updates, result_fetches, result_warnings = prepare_readme_updates(
+            readme_updates,
+            with_results=with_results,
+            require_results=args.require_results,
+            temp_dir=Path(temp_dir_name),
         )
-        readme_results = [run_update_readme(update, dry_run=False) for update in readme_updates]
+        warnings.extend(result_warnings)
+
+        readme_preflight = [
+            run_update_readme(update, dry_run=True) for update in prepared_readme_updates
+        ]
+        if args.dry_run:
+            readme_results = readme_preflight
+        else:
+            copy_or_move_files(
+                source=source,
+                file_actions=file_actions,
+                move=args.move,
+                overwrite=args.overwrite,
+            )
+            readme_results = [
+                run_update_readme(update, dry_run=False) for update in prepared_readme_updates
+            ]
 
     changed_paths, commit_paths = changed_and_commit_paths(
         repo=repo,
@@ -307,9 +441,12 @@ def apply_plan(plan: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]
                 "action": result.get("action"),
                 "changed": bool(result.get("changed")),
                 "problem_id": result.get("problem_id"),
+                "result_rows": result.get("result_rows", []),
             }
             for result in readme_results
         ],
+        "result_fetches": result_fetches,
+        "warnings": warnings,
         "changed_paths": changed_paths,
         "commit_paths": commit_paths,
         "commit_message": plan.get("commit_message"),
@@ -327,6 +464,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--allow-confirmation",
         action="store_true",
         help="Apply a plan whose needs_confirmation field is true.",
+    )
+    parser.add_argument(
+        "--with-results",
+        action="store_true",
+        help="Fetch contest results from the plan and pass them to README updates.",
+    )
+    parser.add_argument(
+        "--require-results",
+        action="store_true",
+        help="Fetch contest results and fail if they cannot be fetched.",
     )
     parser.add_argument("--overwrite", action="store_true", help="Allow replacing existing target files.")
     return parser

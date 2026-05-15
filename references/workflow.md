@@ -190,16 +190,16 @@ Apply confirmed plans through `scripts/apply_plan.py`:
 ```powershell
 python scripts/plan_publish.py C:\path\to\solution.cpp --tags DP,Greedy > C:\path\to\cp-plan.json
 python scripts/apply_plan.py --plan C:\path\to\cp-plan.json --copy --dry-run
-python scripts/apply_plan.py --plan C:\path\to\cp-plan.json --copy
+python scripts/apply_plan.py --plan C:\path\to\cp-plan.json --copy --with-results
 ```
 
 ```sh
 python3 scripts/plan_publish.py /path/to/solution.cpp --tags DP,Greedy > /tmp/cp-plan.json
 python3 scripts/apply_plan.py --plan /tmp/cp-plan.json --copy --dry-run
-python3 scripts/apply_plan.py --plan /tmp/cp-plan.json --copy
+python3 scripts/apply_plan.py --plan /tmp/cp-plan.json --copy --with-results
 ```
 
-`apply_plan.py` verifies the source file, creates target parents, copies or moves the solution, calls `scripts/update_readme.py`, and prints `changed_paths` plus `commit_paths`. It refuses plans with `needs_confirmation: true` unless the user has explicitly confirmed and the command is rerun with `--allow-confirmation`.
+`apply_plan.py` verifies the source file, creates target parents, copies or moves the solution, calls `scripts/update_readme.py`, and prints `changed_paths` plus `commit_paths`. With `--with-results`, it runs each README update's `contest_result_command`, passes the fetched JSON to `update_readme.py --results-json`, and reports any fetch failures as warnings while still updating the solution entry. Use `--require-results` when result fetch failure should fail the apply. It refuses plans with `needs_confirmation: true` unless the user has explicitly confirmed and the command is rerun with `--allow-confirmation`.
 
 ## README Updates
 
