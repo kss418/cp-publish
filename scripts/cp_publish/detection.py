@@ -5,7 +5,20 @@ import re
 from pathlib import Path
 
 from .models import ATCODER_NUMERIC_SERIES, Detection, SUPPORTED_PLATFORMS, WEAK_FILE_STEMS
-from .paths import leading_problem_id, normalize_codeforces_contest_group
+from .paths import (
+    leading_problem_id,
+    normalize_codeforces_contest_group,
+    normalize_codeforces_problem_id,
+)
+
+
+CASE_INSENSITIVE_FIELDS = {
+    "platform",
+    "contest_id",
+    "problem_id",
+    "contest_kind",
+    "contest_group",
+}
 
 
 def read_source_text(path: Path, max_bytes: int = 200_000) -> str:
@@ -54,7 +67,7 @@ def detect_from_text(text: str) -> Detection:
         if match:
             detection.platform = "codeforces"
             detection.contest_id = match.group(1)
-            detection.problem_id = match.group(2)
+            detection.problem_id = normalize_codeforces_problem_id(match.group(2))
             detection.evidence.append(f"Codeforces problem URL: {match.group(0)}")
             detection.confidence = "high"
             return detection
@@ -157,7 +170,7 @@ def detect_from_filename(path: Path) -> Detection:
     if cf_match:
         detection.platform = "codeforces"
         detection.contest_id = cf_match.group(1)
-        detection.problem_id = cf_match.group(2)
+        detection.problem_id = normalize_codeforces_problem_id(cf_match.group(2))
         set_filename_title(cf_match.group(3))
         detection.evidence.append(f"Codeforces filename: {path.name}")
         detection.confidence = "medium"
@@ -198,7 +211,9 @@ def detect_from_path(path: Path) -> Detection:
             detection.platform = "codeforces"
             detection.contest_kind = "Educational"
             detection.round_number = parts[idx + 3]
-            detection.problem_id = leading_problem_id(path.stem)
+            detection.problem_id = normalize_codeforces_problem_id(
+                leading_problem_id(path.stem)
+            )
             detection.evidence.append("Codeforces Educational path convention")
             detection.confidence = "medium"
             return detection
@@ -207,7 +222,9 @@ def detect_from_path(path: Path) -> Detection:
             detection.contest_kind = "Others"
             detection.contest_group = normalize_codeforces_contest_group(raw_parts[idx + 1])
             detection.round_number = parts[idx + 4]
-            detection.problem_id = leading_problem_id(path.stem)
+            detection.problem_id = normalize_codeforces_problem_id(
+                leading_problem_id(path.stem)
+            )
             detection.evidence.append(
                 f"Detected Codeforces Others round {parts[idx + 4]} from path"
             )
@@ -219,11 +236,20 @@ def detect_from_path(path: Path) -> Detection:
     if len(numeric_parts) >= 3 and problem_id and re.fullmatch(r"[a-z][0-9]?", problem_id.lower()):
         detection.platform = "codeforces"
         detection.round_number = numeric_parts[-1]
-        detection.problem_id = problem_id
+        detection.problem_id = normalize_codeforces_problem_id(problem_id)
         detection.evidence.append("Codeforces numeric path convention")
         detection.confidence = "medium"
 
     return detection
+
+
+def canonical_detection_value(field_name: str, value: str | None) -> str | None:
+    if value is None:
+        return None
+    cleaned = value.strip()
+    if field_name in CASE_INSENSITIVE_FIELDS:
+        return cleaned.casefold()
+    return cleaned
 
 
 def merge_field(
@@ -242,7 +268,9 @@ def merge_field(
         setattr(merged, field_name, value)
         return
 
-    if current != value:
+    if canonical_detection_value(field_name, current) != canonical_detection_value(
+        field_name, value
+    ):
         merged.conflicts.append(
             f"{field_name} conflict: kept {current!r}, ignored {value!r} from {source}"
         )
