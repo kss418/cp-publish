@@ -28,7 +28,9 @@ Preserve the source language by extension. Normalize common extensions as follow
 | Python | `.py`, `.py3` | `.py` |
 | Rust | `.rs` | `.rs` |
 | Java | `.java` | `.java` |
+| JavaScript | `.js` | `.js` |
 | Kotlin | `.kt` | `.kt` |
+| Kotlin Script | `.kts` | `.kt` |
 | Go | `.go` | `.go` |
 
 If the extension is unknown, keep the original extension and ask for confirmation before publishing.
