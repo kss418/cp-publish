@@ -48,7 +48,6 @@ def detect_from_text(text: str) -> Detection:
     cf_patterns = [
         r"https?://codeforces\.com/problemset/problem/(\d+)/([A-Za-z0-9]+)",
         r"https?://codeforces\.com/contest/(\d+)/problem/([A-Za-z0-9]+)",
-        r"https?://codeforces\.com/gym/(\d+)/problem/([A-Za-z0-9]+)",
     ]
     for pattern in cf_patterns:
         match = re.search(pattern, text)
