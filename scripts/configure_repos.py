@@ -181,9 +181,16 @@ def write_config(path: Path, data: dict[str, Any], *, force: bool) -> None:
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
 
-def prompt_path(label: str, *, default: str | None = None) -> str:
+def prompt_path(label: str, *, default: str | None = None, required: bool = True) -> str:
     suffix = f" [{default}]" if default else ""
-    value = input(f"{label}{suffix}: ").strip()
+    try:
+        value = input(f"{label}{suffix}: ").strip()
+    except EOFError as exc:
+        if default is not None:
+            return default
+        if not required:
+            return ""
+        raise ConfigError(f"{label} is required in non-interactive mode.") from exc
     if not value and default is not None:
         return default
     return value
@@ -229,9 +236,9 @@ def init_config(args: argparse.Namespace, config_path: Path) -> None:
         )
 
     if "atcoder" in platforms and atcoder_user is None:
-        atcoder_user = prompt_path("AtCoder user ID for contest results")
+        atcoder_user = prompt_path("AtCoder user ID for contest results", required=False)
     if "codeforces" in platforms and codeforces_user is None:
-        codeforces_user = prompt_path("Codeforces handle for contest results")
+        codeforces_user = prompt_path("Codeforces handle for contest results", required=False)
 
     data = build_config(
         platforms=platforms,
