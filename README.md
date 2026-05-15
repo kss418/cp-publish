@@ -72,18 +72,24 @@ contest 그룹이나 라운드 번호를 안정적으로 뽑을 수 없으면 Co
 
 ## 설치 방법
 
-이 저장소를 Codex skill 디렉터리 아래에 `cp-publish` 이름으로 복사하거나 clone합니다.
+이 디렉터리를 현재 환경이 사용하는 Codex skills 디렉터리 아래에 `cp-publish` 이름으로 복사하거나 clone합니다. skills 디렉터리는 실행 환경에 따라 다를 수 있습니다.
+
+자주 쓰는 위치는 다음과 같습니다.
+
+- 사용자 범위 skills: `$HOME/.agents/skills/cp-publish`
+- 저장소 범위 skills: `.agents/skills/cp-publish`
+- 기존 Codex 환경: `$HOME/.codex/skills/cp-publish`
 
 Windows:
 
 ```powershell
-git clone https://github.com/kss418/cp-publish $env:USERPROFILE\.codex\skills\cp-publish
+git clone https://github.com/kss418/cp-publish $env:USERPROFILE\.agents\skills\cp-publish
 ```
 
 macOS / Linux:
 
 ```sh
-git clone https://github.com/kss418/cp-publish ~/.codex/skills/cp-publish
+git clone https://github.com/kss418/cp-publish ~/.agents/skills/cp-publish
 ```
 
 이미 로컬에 받은 폴더가 있다면 해당 폴더 전체를 위 위치로 복사해도 됩니다. 최소한 다음 파일과 폴더가 함께 있어야 합니다.
@@ -150,7 +156,7 @@ Windows:
 ```powershell
 python scripts/configure_repos.py init
 python scripts/configure_repos.py validate
-python scripts/configure_repos.py user codeforces --id kss418
+python scripts/configure_repos.py user codeforces --id <codeforces_handle>
 python scripts/configure_repos.py user atcoder --id kss418
 ```
 
@@ -159,7 +165,7 @@ macOS / Linux:
 ```sh
 python3 scripts/configure_repos.py init
 python3 scripts/configure_repos.py validate
-python3 scripts/configure_repos.py user codeforces --id kss418
+python3 scripts/configure_repos.py user codeforces --id <codeforces_handle>
 python3 scripts/configure_repos.py user atcoder --id kss418
 ```
 
@@ -264,7 +270,7 @@ README 항목만 직접 갱신하려면 다음 명령을 사용할 수 있습니
 
 ```powershell
 python scripts/update_readme.py --contest-dir C:\path\to\contest --contest-url https://codeforces.com/contest/2061 --problem-id A --rating 800 --tags Case_Work
-python scripts/codeforces_results.py contest --contest-id 2061 --user kss418 --output C:\path\to\results.json
+python scripts/codeforces_results.py contest --contest-id 2061 --user <codeforces_handle> --output C:\path\to\results.json
 python scripts/update_readme.py --contest-dir C:\path\to\contest --contest-url https://codeforces.com/contest/2061 --problem-id A --rating 800 --tags Case_Work --results-json C:\path\to\results.json
 ```
 
@@ -305,11 +311,11 @@ python3 scripts/atcoder_metadata.py all
 Codeforces:
 
 ```powershell
-python scripts/codeforces_results.py contest --contest-id 2061 --user kss418
+python scripts/codeforces_results.py contest --contest-id 2061 --user <codeforces_handle>
 ```
 
 ```sh
-python3 scripts/codeforces_results.py contest --contest-id 2061 --user kss418
+python3 scripts/codeforces_results.py contest --contest-id 2061 --user <codeforces_handle>
 ```
 
 Codeforces는 `contest.standings`를 먼저 쓰고, standings에 사용자가 없으면 `contest.status`로 해당 handle의 제출을 가져와 계산합니다.
@@ -333,7 +339,7 @@ AtCoder는 기본적으로 AtCoder standings JSON을 사용합니다. `--source 
 ```json
 {
   "platform": "codeforces",
-  "user": "kss418",
+  "user": "<codeforces_handle>",
   "participated": true,
   "contest": {
     "contest_id": "2061",
