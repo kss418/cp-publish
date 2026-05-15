@@ -239,6 +239,26 @@ python3 scripts/plan_publish.py /path/to/solution.cpp --tags DP,Greedy
 }
 ```
 
+plan을 적용할 때는 `scripts/apply_plan.py`를 사용합니다. 기본적으로 `needs_confirmation`이 `true`인 plan은 실패합니다.
+
+Windows:
+
+```powershell
+python scripts/plan_publish.py C:\path\to\solution.cpp --tags DP,Greedy > C:\path\to\cp-plan.json
+python scripts/apply_plan.py --plan C:\path\to\cp-plan.json --copy --dry-run
+python scripts/apply_plan.py --plan C:\path\to\cp-plan.json --copy
+```
+
+macOS / Linux:
+
+```sh
+python3 scripts/plan_publish.py /path/to/solution.cpp --tags DP,Greedy > /tmp/cp-plan.json
+python3 scripts/apply_plan.py --plan /tmp/cp-plan.json --copy --dry-run
+python3 scripts/apply_plan.py --plan /tmp/cp-plan.json --copy
+```
+
+`apply_plan.py`는 source file 존재 여부, target parent 생성, copy/move, README 갱신, 변경 path 목록, commit 대상 path 목록을 JSON으로 출력합니다.
+
 `needs_confirmation`이 `true`이면 실제 변경 전에 사용자의 확인이 필요합니다.
 
 ## README 갱신 양식
@@ -383,6 +403,7 @@ scripts/check_dependencies.py    # 의존성 확인
 scripts/install_dependencies.py  # 승인 후 의존성 설치
 scripts/configure_repos.py       # 저장소 라우팅 설정
 scripts/plan_publish.py          # publish 전 dry-run 계획 CLI
+scripts/apply_plan.py            # plan 기반 copy/move 및 README 갱신
 scripts/cp_publish/              # detection, path, metadata, planning support modules
 scripts/update_readme.py         # contest README 갱신
 scripts/github_integration.py    # GitHub 인증, commit, push 보조

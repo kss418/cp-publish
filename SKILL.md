@@ -419,6 +419,22 @@ The script combines solution detection, configured repository routing, path rule
 
 If `needs_confirmation` is `true`, stop and ask the user to confirm the ambiguous or risky parts before modifying files. Common confirmation triggers include weak detection evidence, missing README tags, missing AtCoder problem title, unknown Codeforces contest kind, missing Codeforces round number, missing Codeforces Others contest group, unknown source extension, or an existing target file.
 
+Apply confirmed plans with `scripts/apply_plan.py` instead of hand-composing copy/move and README commands:
+
+```powershell
+python scripts/plan_publish.py C:\path\to\solution.cpp --tags DP,Greedy > C:\path\to\cp-plan.json
+python scripts/apply_plan.py --plan C:\path\to\cp-plan.json --copy --dry-run
+python scripts/apply_plan.py --plan C:\path\to\cp-plan.json --copy
+```
+
+```sh
+python3 scripts/plan_publish.py /path/to/solution.cpp --tags DP,Greedy > /tmp/cp-plan.json
+python3 scripts/apply_plan.py --plan /tmp/cp-plan.json --copy --dry-run
+python3 scripts/apply_plan.py --plan /tmp/cp-plan.json --copy
+```
+
+`apply_plan.py` verifies the source file, creates target parents, copies or moves the solution, calls `scripts/update_readme.py`, and prints `changed_paths` plus `commit_paths`. It refuses plans with `needs_confirmation: true` unless the user has explicitly confirmed and the command is rerun with `--allow-confirmation`.
+
 When network metadata is unavailable because sandbox access is blocked, request approval to rerun the same planning command with network access. If metadata is still unavailable, continue only when the user confirms the missing contest/problem details.
 
 ## Publish Workflow
@@ -438,14 +454,12 @@ When network metadata is unavailable because sandbox access is blocked, request 
 8. If the route has no `user_id`, ask the user for their platform ID and save it with `scripts/configure_repos.py user <platform> --id <id>`.
 9. Run `scripts/plan_publish.py` for the candidate source and inspect the JSON plan.
 10. If `needs_confirmation` is `true`, ask the user to confirm before modifying files.
-11. Load `references/path-rules.md` and use the planned target path or paths under the resolved `target_base`.
-12. Move or copy the solution into the resolved repository and base directory. For multiple Codeforces targets, copy to every target.
-13. Load `references/readme-format.md` and `references/solution-tags.md`.
-14. If a configured user ID exists, run the planned `contest_result_command`; when it succeeds, pass its JSON to `scripts/update_readme.py --results-json`.
-15. Update the contest `README.md`. Update other README, index, or problem list files when the repository uses them.
-16. Run lightweight validation for the solution language when practical.
-17. Commit only the relevant solution and index changes.
-18. Push with `git`/`gh` without force-pushing.
+11. Apply the plan with `scripts/apply_plan.py --copy --dry-run`, inspect the JSON output, then run it without `--dry-run` when it is safe.
+12. Use the returned `commit_paths` as the explicit commit target list.
+13. Update other README, index, or problem list files when the repository uses them.
+14. Run lightweight validation for the solution language when practical.
+15. Commit only the relevant solution and index changes.
+16. Push with `git`/`gh` without force-pushing.
 
 ## GitHub Helpers
 
