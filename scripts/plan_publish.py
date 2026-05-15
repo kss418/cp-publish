@@ -60,6 +60,7 @@ class Detection:
     round_number: str | None = None
     contest_group: str | None = None
     evidence: list[str] = field(default_factory=list)
+    conflicts: list[str] = field(default_factory=list)
     confidence: str = "none"
 
 
@@ -409,7 +410,29 @@ def detect_from_path(path: Path) -> Detection:
     return detection
 
 
-def merge_detection(base: Detection, incoming: Detection) -> Detection:
+def merge_field(
+    merged: Detection,
+    incoming: Detection,
+    field_name: str,
+    source: str,
+) -> None:
+    current = getattr(merged, field_name)
+    value = getattr(incoming, field_name)
+
+    if not value:
+        return
+
+    if not current:
+        setattr(merged, field_name, value)
+        return
+
+    if current != value:
+        merged.conflicts.append(
+            f"{field_name} conflict: kept {current!r}, ignored {value!r} from {source}"
+        )
+
+
+def merge_detection(base: Detection, incoming: Detection, *, source: str) -> Detection:
     confidence_rank = {"none": 0, "low": 1, "medium": 2, "high": 3}
     merged = Detection(
         platform=base.platform,
@@ -421,6 +444,7 @@ def merge_detection(base: Detection, incoming: Detection) -> Detection:
         round_number=base.round_number,
         contest_group=base.contest_group,
         evidence=[*base.evidence],
+        conflicts=[*base.conflicts],
         confidence=base.confidence,
     )
 
@@ -436,11 +460,9 @@ def merge_detection(base: Detection, incoming: Detection) -> Detection:
         "round_number",
         "contest_group",
     ):
-        current = getattr(merged, attr)
-        value = getattr(incoming, attr)
-        if not current and value:
-            setattr(merged, attr, value)
+        merge_field(merged, incoming, attr, source)
     merged.evidence.extend(item for item in incoming.evidence if item not in merged.evidence)
+    merged.conflicts.extend(item for item in incoming.conflicts if item not in merged.conflicts)
     return merged
 
 
@@ -448,7 +470,11 @@ def detect_solution(path: Path) -> Detection:
     text_detection = detect_from_text(read_source_text(path))
     filename_detection = detect_from_filename(path)
     path_detection = detect_from_path(path)
-    return merge_detection(merge_detection(text_detection, filename_detection), path_detection)
+    return merge_detection(
+        merge_detection(text_detection, filename_detection, source="filename"),
+        path_detection,
+        source="path",
+    )
 
 
 def apply_overrides(detection: Detection, args: argparse.Namespace) -> Detection:
@@ -462,6 +488,7 @@ def apply_overrides(detection: Detection, args: argparse.Namespace) -> Detection
         round_number=detection.round_number,
         contest_group=detection.contest_group,
         evidence=[*detection.evidence],
+        conflicts=[*detection.conflicts],
         confidence=detection.confidence,
     )
     overrides = {
@@ -1254,6 +1281,9 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     if any(item.startswith("CLI override changed ") for item in detection.evidence):
         warnings.append("CLI overrides conflict with detected source metadata; confirm before publishing.")
         needs_confirmation = True
+    if detection.conflicts:
+        warnings.extend(detection.conflicts)
+        needs_confirmation = True
     if not collect_tags(args):
         warnings.append("README tags were not provided; infer tags from the solution code before updating README.")
         needs_confirmation = True
@@ -1284,6 +1314,7 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
             "contest_group": detection.contest_group,
             "confidence": detection.confidence,
             "evidence": detection.evidence,
+            "conflicts": detection.conflicts,
         },
         "metadata": platform_plan["metadata"],
         "warnings": warnings,
