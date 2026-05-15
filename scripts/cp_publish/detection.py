@@ -109,6 +109,15 @@ def detect_from_filename(path: Path) -> Detection:
     compact = re.sub(r"[^A-Za-z0-9]", "", stem).lower()
     detection = Detection()
 
+    def set_filename_title(suffix: str | None) -> None:
+        if not suffix:
+            return
+        title = re.sub(r"[_-]+", " ", suffix).strip(" ._-")
+        title = re.sub(r"\s+", " ", title)
+        if title:
+            detection.problem_title = title
+            detection.evidence.append(f"Filename title suffix: {title}")
+
     atcoder_match = re.fullmatch(r"(abc|arc|agc|ahc)(\d{2,4})([a-z][0-9]?|ex)", compact)
     if atcoder_match:
         detection.platform = "atcoder"
@@ -119,13 +128,15 @@ def detect_from_filename(path: Path) -> Detection:
         return detection
 
     atcoder_split = re.fullmatch(
-        r"(abc|arc|agc|ahc)(\d{2,4})[_-]?([a-z][0-9]?|ex)",
-        stem.lower(),
+        r"(abc|arc|agc|ahc)(\d{2,4})[_-]?([a-z][0-9]?|ex)(?:[_-](.+))?",
+        stem,
+        re.IGNORECASE,
     )
     if atcoder_split:
         detection.platform = "atcoder"
-        detection.contest_id = f"{atcoder_split.group(1)}{int(atcoder_split.group(2)):03d}"
-        detection.problem_id = atcoder_split.group(3)
+        detection.contest_id = f"{atcoder_split.group(1).lower()}{int(atcoder_split.group(2)):03d}"
+        detection.problem_id = atcoder_split.group(3).lower()
+        set_filename_title(atcoder_split.group(4))
         detection.evidence.append(f"AtCoder filename: {path.name}")
         detection.confidence = "medium"
         return detection
@@ -139,11 +150,16 @@ def detect_from_filename(path: Path) -> Detection:
         detection.confidence = "medium"
         return detection
 
-    cf_match = re.fullmatch(r"(?:cf[_-]?)?(\d{3,5})[_-]?([A-Za-z][0-9]?)", stem)
+    cf_match = re.fullmatch(
+        r"(?:cf[_-]?)?(\d{3,5})[_-]?([A-Za-z][0-9]?)(?:[_-](.+))?",
+        stem,
+        re.IGNORECASE,
+    )
     if cf_match:
         detection.platform = "codeforces"
         detection.contest_id = cf_match.group(1)
         detection.problem_id = cf_match.group(2)
+        set_filename_title(cf_match.group(3))
         detection.evidence.append(f"Codeforces filename: {path.name}")
         detection.confidence = "medium"
         return detection
