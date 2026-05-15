@@ -68,6 +68,34 @@ def atcoder_problem_from_task_id(contest_id: str, task_id: str) -> str:
     return lowered_task
 
 
+def normalized_metadata_detection(metadata: dict[str, str], platform_hint: str | None) -> Detection:
+    metadata_detection = Detection()
+
+    platform = metadata.get("platform")
+    if platform:
+        metadata_detection.platform = platform.lower()
+
+    effective_platform = metadata_detection.platform or platform_hint
+    contest_id = metadata.get("contest_id")
+    if contest_id:
+        if effective_platform == "atcoder":
+            metadata_detection.contest_id = contest_id.lower()
+        else:
+            metadata_detection.contest_id = contest_id
+
+    problem_id = metadata.get("problem_id")
+    if problem_id:
+        if effective_platform == "codeforces":
+            metadata_detection.problem_id = normalize_codeforces_problem_id(problem_id)
+        elif effective_platform == "atcoder":
+            metadata_detection.problem_id = problem_id.lower()
+        else:
+            metadata_detection.problem_id = problem_id
+
+    metadata_detection.problem_title = metadata.get("problem_title")
+    return metadata_detection
+
+
 def detect_from_text(text: str) -> Detection:
     detection = Detection()
 
@@ -83,21 +111,21 @@ def detect_from_text(text: str) -> Detection:
         detection.problem_id = atcoder_problem_from_task_id(contest_id, task_id)
         detection.evidence.append(f"AtCoder task URL: {atcoder_url.group(0)}")
         detection.confidence = "high"
-        return detection
 
-    cf_patterns = [
-        r"https?://codeforces\.com/problemset/problem/(\d+)/([A-Za-z0-9]+)",
-        r"https?://codeforces\.com/contest/(\d+)/problem/([A-Za-z0-9]+)",
-    ]
-    for pattern in cf_patterns:
-        match = re.search(pattern, text)
-        if match:
-            detection.platform = "codeforces"
-            detection.contest_id = match.group(1)
-            detection.problem_id = normalize_codeforces_problem_id(match.group(2))
-            detection.evidence.append(f"Codeforces problem URL: {match.group(0)}")
-            detection.confidence = "high"
-            return detection
+    if not atcoder_url:
+        cf_patterns = [
+            r"https?://codeforces\.com/problemset/problem/(\d+)/([A-Za-z0-9]+)",
+            r"https?://codeforces\.com/contest/(\d+)/problem/([A-Za-z0-9]+)",
+        ]
+        for pattern in cf_patterns:
+            match = re.search(pattern, text)
+            if match:
+                detection.platform = "codeforces"
+                detection.contest_id = match.group(1)
+                detection.problem_id = normalize_codeforces_problem_id(match.group(2))
+                detection.evidence.append(f"Codeforces problem URL: {match.group(0)}")
+                detection.confidence = "high"
+                break
 
     metadata: dict[str, str] = {}
     metadata_keys = {
@@ -133,12 +161,12 @@ def detect_from_text(text: str) -> Detection:
     if metadata:
         if metadata.get("platform") and metadata["platform"].lower() not in SUPPORTED_PLATFORMS:
             metadata.pop("platform")
-        detection.platform = metadata.get("platform", detection.platform)
-        detection.contest_id = metadata.get("contest_id", detection.contest_id)
-        detection.problem_id = metadata.get("problem_id", detection.problem_id)
-        detection.problem_title = metadata.get("problem_title", detection.problem_title)
+        metadata_detection = normalized_metadata_detection(metadata, detection.platform)
+        for attr in ("platform", "contest_id", "problem_id", "problem_title"):
+            merge_field(detection, metadata_detection, attr, "structured metadata")
         detection.evidence.append("Structured metadata comments")
-        detection.confidence = "medium" if detection.contest_id and detection.problem_id else "low"
+        if detection.confidence != "high":
+            detection.confidence = "medium" if detection.contest_id and detection.problem_id else "low"
 
     return detection
 
