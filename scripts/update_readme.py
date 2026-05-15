@@ -15,6 +15,7 @@ from typing import Any
 ENTRY_RE = re.compile(r"^(\S+)\s*/\s*Rating\s*:\s*(.*?)\s*/\s*(.+?)\s*$")
 RESULTS_HEADING = "## Results"
 SOLUTIONS_HEADING = "## Solutions"
+TAG_MAP_PATH = Path(__file__).resolve().parent.parent / "references" / "solvedac-tag-map.json"
 
 
 class ReadmeUpdateError(RuntimeError):
@@ -70,18 +71,64 @@ def normalize_rating(value: str | None) -> str:
     return f"${cleaned}$"
 
 
+def load_tag_map() -> dict[str, str]:
+    try:
+        payload = json.loads(TAG_MAP_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ReadmeUpdateError(f"Could not load README tag map: {TAG_MAP_PATH}") from exc
+
+    tags = payload.get("tags")
+    if not isinstance(tags, dict):
+        raise ReadmeUpdateError(f"README tag map has no tags object: {TAG_MAP_PATH}")
+
+    result: dict[str, str] = {}
+    for key, value in tags.items():
+        if isinstance(key, str) and isinstance(value, str) and key and value:
+            result[key] = value
+    if not result:
+        raise ReadmeUpdateError(f"README tag map is empty: {TAG_MAP_PATH}")
+    return result
+
+
+def normalize_tag_key(value: str) -> str:
+    lowered = value.strip().lower()
+    lowered = re.sub(r"[^a-z0-9]+", "_", lowered)
+    return re.sub(r"_+", "_", lowered).strip("_")
+
+
+def normalize_readme_tag(value: str, tag_map: dict[str, str]) -> str:
+    cleaned = value.strip()
+    if not cleaned:
+        raise ReadmeUpdateError("README tag must not be empty.")
+
+    allowed_values = set(tag_map.values())
+    if cleaned in allowed_values:
+        return cleaned
+
+    key = normalize_tag_key(cleaned)
+    if key in tag_map:
+        return tag_map[key]
+
+    raise ReadmeUpdateError(
+        f"Unsupported README tag: {cleaned}. "
+        "Use a tag name or solved.ac key from references/solvedac-tag-map.json."
+    )
+
+
 def normalize_tags(raw_tags: str | None, repeated_tags: list[str] | None) -> str:
-    tags: list[str] = []
+    raw_values: list[str] = []
 
     if raw_tags:
-        tags.extend(part.strip() for part in raw_tags.split(","))
+        raw_values.extend(part.strip() for part in raw_tags.split(","))
     if repeated_tags:
-        tags.extend(part.strip() for part in repeated_tags)
+        raw_values.extend(part.strip() for part in repeated_tags)
 
-    tags = [tag for tag in tags if tag]
-    if not tags:
+    raw_values = [tag for tag in raw_values if tag]
+    if not raw_values:
         raise ReadmeUpdateError("at least one tag is required.")
 
+    tag_map = load_tag_map()
+    tags = [normalize_readme_tag(tag, tag_map) for tag in raw_values]
     return ", ".join(tags)
 
 

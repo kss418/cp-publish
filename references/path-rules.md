@@ -87,19 +87,19 @@ If an AtCoder task suffix contains multiple parts, preserve it as the problem la
 For regular numeric Codeforces rounds, use the Codeforces round number:
 
 ```text
-<target_base>/<hundreds_bucket>/<tens_bucket>/<round_number>/<problem_id>.<ext>
+<target_base>/<hundreds_bucket>/<tens_bucket>/<round_number>/<problem_id>_<problem_title_slug>.<ext>
 ```
 
 For Educational rounds, use the Educational round number under `Educational`:
 
 ```text
-<target_base>/Educational/<hundreds_bucket>/<tens_bucket>/<round_number>/<problem_id>.<ext>
+<target_base>/Educational/<hundreds_bucket>/<tens_bucket>/<round_number>/<problem_id>_<problem_title_slug>.<ext>
 ```
 
 For non-regular named contests, use the normalized contest group and the numeric round identifier from the contest name under `Others`:
 
 ```text
-<target_base>/Others/<contest_group>/<hundreds_bucket>/<tens_bucket>/<round_number>/<problem_id>.<ext>
+<target_base>/Others/<contest_group>/<hundreds_bucket>/<tens_bucket>/<round_number>/<problem_id>_<problem_title_slug>.<ext>
 ```
 
 Normalize:
@@ -111,6 +111,7 @@ Normalize:
 - `hundreds_bucket`: `(round_number // 100) * 100`, for example `1094 -> 1000`.
 - `tens_bucket`: `(round_number // 10) * 10`, for example `1094 -> 1090`.
 - `problem_id`: uppercase problem index, preserving multi-part indices such as `A1`, `B2`, or `C`.
+- `problem_title_slug`: problem title with spaces replaced by underscores and unsafe filename characters removed.
 - `ext`: normalized language extension.
 
 Classify by the Codeforces contest `name` from `contest.list`; do not classify by the API `type` alone. Many official Div. 3, Div. 4, and Educational rounds have API `type` values such as `ICPC`.
@@ -143,14 +144,14 @@ Examples:
 
 | Signal | Target path below `target_base` |
 | --- | --- |
-| `https://codeforces.com/contest/2228/problem/A` with `Codeforces Round 1098 (Div. 2)` | `1000/1090/1098/A.cpp` |
-| `https://codeforces.com/contest/2222/problem/A` with `Spectral::Cup 2026 Round 1 (Codeforces Round 1094, Div. 1 + Div. 2)` | `1000/1090/1094/A.cpp` |
-| Educational contest ID `2225`, `Educational Codeforces Round 189`, problem `A` | `Educational/100/180/189/A.cpp` |
-| `CodeTON Round 9`, contest ID `2039`, problem `B` | `Others/CodeTON_Round/0/0/9/B.cpp` |
-| `Codeforces Global Round 11`, problem `C` | `Others/Global_Round/0/10/11/C.cpp` |
-| `Hello 2026`, problem `A` | `Others/Hello/0/20/26/A.cpp` |
-| `Good Bye 2022`, problem `A` | `Others/Good_Bye/0/20/22/A.cpp` |
-| `April Fools Contest 3`, problem `A` | `Others/April_Fools/0/0/3/A.cpp` |
+| `https://codeforces.com/contest/2228/problem/A` with `Codeforces Round 1098 (Div. 2)` and title `Example Title` | `1000/1090/1098/A_Example_Title.cpp` |
+| `https://codeforces.com/contest/2222/problem/A` with `Spectral::Cup 2026 Round 1 (Codeforces Round 1094, Div. 1 + Div. 2)` and title `Example Title` | `1000/1090/1094/A_Example_Title.cpp` |
+| Educational contest ID `2225`, `Educational Codeforces Round 189`, problem `A`, title `Example Title` | `Educational/100/180/189/A_Example_Title.cpp` |
+| `CodeTON Round 9`, contest ID `2039`, problem `B`, title `Example Title` | `Others/CodeTON_Round/0/0/9/B_Example_Title.cpp` |
+| `Codeforces Global Round 11`, problem `C`, title `Example Title` | `Others/Global_Round/0/10/11/C_Example_Title.cpp` |
+| `Hello 2026`, problem `A`, title `Example Title` | `Others/Hello/0/20/26/A_Example_Title.cpp` |
+| `Good Bye 2022`, problem `A`, title `Example Title` | `Others/Good_Bye/0/20/22/A_Example_Title.cpp` |
+| `April Fools Contest 3`, problem `A`, title `Example Title` | `Others/April_Fools/0/0/3/A_Example_Title.cpp` |
 
 If the contest looks Educational but the round number is unclear, ask the user before publishing.
 
@@ -173,14 +174,14 @@ contest_id=<contest id>, round_number=<round number>, contest_group=<contest gro
 Apply the normal Codeforces path rule to each pair:
 
 ```text
-<target_base>/<hundreds_bucket>/<tens_bucket>/<round_number>/<problem_id>.<ext>
+<target_base>/<hundreds_bucket>/<tens_bucket>/<round_number>/<problem_id>_<problem_title_slug>.<ext>
 ```
 
 Example:
 
 | Shared problem mapping | Target paths below `target_base` |
 | --- | --- |
-| Div. 2 `2188A` == Div. 1 `2187C`, both from Codeforces Round `1077` | `1000/1070/1077/A.cpp` and `1000/1070/1077/C.cpp` |
+| Div. 2 `2188A` == Div. 1 `2187C`, both from Codeforces Round `1077`, title `Example Title` | `1000/1070/1077/A_Example_Title.cpp` and `1000/1070/1077/C_Example_Title.cpp` |
 
 For multiple targets, copy the source solution to each target path. Do not move the source into only one target when more than one target is required.
 
@@ -203,7 +204,7 @@ Ask the user before moving or copying files when any of these are true:
 - The Codeforces round number cannot be determined confidently.
 - The Codeforces contest kind cannot be determined confidently.
 - A Codeforces problem may belong to a combined Div. 1 + Div. 2 round but the paired target is unclear.
-- The AtCoder problem title cannot be determined confidently.
+- The AtCoder or Codeforces problem title cannot be determined confidently.
 - The target path already exists.
 - The language extension is unknown.
 
@@ -217,7 +218,7 @@ round_number: <round number, for Codeforces path placement>
 contest_group: <contest group, for Codeforces Others>
 problem_id: <problem id>
 contest_kind: <regular|Educational|Others, for Codeforces>
-problem_title: <problem title, for AtCoder>
+problem_title: <problem title>
 target: <target path>
 additional_targets: <extra target paths, for Codeforces combined rounds>
 ```

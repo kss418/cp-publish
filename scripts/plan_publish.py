@@ -42,6 +42,7 @@ EXTENSION_ALIASES = {
     ".kts": ".kt",
 }
 ATCODER_NUMERIC_SERIES = {"abc", "arc", "agc", "ahc"}
+TAG_MAP_PATH = Path(__file__).resolve().parent.parent / "references" / "solvedac-tag-map.json"
 
 
 class PlanError(Exception):
@@ -154,6 +155,50 @@ def safe_title_slug(title: str | None) -> str | None:
     slug = re.sub(r"\s+", "_", slug)
     slug = re.sub(r"_+", "_", slug).strip("._ ")
     return slug or None
+
+
+def load_tag_map() -> dict[str, str]:
+    try:
+        payload = json.loads(TAG_MAP_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise PlanError(f"Could not load README tag map: {TAG_MAP_PATH}") from exc
+
+    tags = payload.get("tags")
+    if not isinstance(tags, dict):
+        raise PlanError(f"README tag map has no tags object: {TAG_MAP_PATH}")
+
+    result: dict[str, str] = {}
+    for key, value in tags.items():
+        if isinstance(key, str) and isinstance(value, str) and key and value:
+            result[key] = value
+    if not result:
+        raise PlanError(f"README tag map is empty: {TAG_MAP_PATH}")
+    return result
+
+
+def normalize_tag_key(value: str) -> str:
+    lowered = value.strip().lower()
+    lowered = re.sub(r"[^a-z0-9]+", "_", lowered)
+    return re.sub(r"_+", "_", lowered).strip("_")
+
+
+def normalize_readme_tag(value: str, tag_map: dict[str, str]) -> str:
+    cleaned = value.strip()
+    if not cleaned:
+        raise PlanError("README tag must not be empty.")
+
+    allowed_values = set(tag_map.values())
+    if cleaned in allowed_values:
+        return cleaned
+
+    key = normalize_tag_key(cleaned)
+    if key in tag_map:
+        return tag_map[key]
+
+    raise PlanError(
+        f"Unsupported README tag: {cleaned}. "
+        "Use a tag name or solved.ac key from references/solvedac-tag-map.json."
+    )
 
 
 def read_source_text(path: Path, max_bytes: int = 200_000) -> str:
@@ -591,6 +636,16 @@ def codeforces_rating(contest_id: str, problem_id: str, metadata: dict[str, Any]
     return rating_markdown(problem.get("rating"))
 
 
+def codeforces_problem_title(contest_id: str, problem_id: str, metadata: dict[str, Any]) -> str | None:
+    problem = find_codeforces_problem(contest_id, problem_id, metadata)
+    if not problem:
+        return None
+    title = problem.get("name")
+    if not isinstance(title, str):
+        return None
+    return title.strip() or None
+
+
 def find_codeforces_contest(contest_id: str, metadata: dict[str, Any]) -> dict[str, Any] | None:
     contests = metadata.get("contests") or []
     wanted = int(contest_id)
@@ -749,7 +804,13 @@ def resolve_codeforces_contest_group(target: CodeforcesTarget) -> str | None:
     return extract_codeforces_contest_group(target.contest_title, target.contest_kind)
 
 
-def build_codeforces_target(route: Route, target: CodeforcesTarget, ext: str) -> Path:
+def build_codeforces_target(
+    route: Route,
+    target: CodeforcesTarget,
+    problem_title: str | None,
+    ext: str,
+    warnings: list[str],
+) -> Path:
     round_number = resolve_codeforces_round_number(target)
     if not round_number:
         raise PlanError(
@@ -760,7 +821,12 @@ def build_codeforces_target(route: Route, target: CodeforcesTarget, ext: str) ->
     folder_number = int(round_number)
     hundreds = (folder_number // 100) * 100
     tens = (folder_number // 10) * 10
-    filename = f"{normalize_codeforces_problem_id(target.problem_id)}{ext}"
+    problem_id = normalize_codeforces_problem_id(target.problem_id)
+    title_slug = safe_title_slug(problem_title)
+    if not title_slug:
+        title_slug = "TITLE_REQUIRED"
+        warnings.append("Codeforces problem title is required to create the final filename.")
+    filename = f"{problem_id}_{title_slug}{ext}"
     base = route.target_base
     if target.contest_kind == "Educational":
         base = base / "Educational"
@@ -966,7 +1032,12 @@ def plan_codeforces(
         if not target.contest_kind:
             warnings.append(f"Codeforces contest kind is required for contest {target.contest_id}.")
             target.contest_kind = "regular"
-        target_path = build_codeforces_target(route, target, ext)
+        problem_title = detection.problem_title or codeforces_problem_title(
+            target.contest_id,
+            target.problem_id,
+            metadata,
+        )
+        target_path = build_codeforces_target(route, target, problem_title, ext, warnings)
         contest_url = f"https://codeforces.com/contest/{target.contest_id}"
         contest_dir_key = str(target_path.parent)
         readme_url = readme_urls_by_dir.setdefault(contest_dir_key, contest_url)
@@ -1003,6 +1074,7 @@ def plan_codeforces(
                 "contest_kind": target.contest_kind,
                 "contest_title": target.contest_title,
                 "problem_id": normalize_codeforces_problem_id(target.problem_id),
+                "problem_title": problem_title,
                 "rating": rating,
                 "user_id": route.user_id,
             }
@@ -1012,18 +1084,24 @@ def plan_codeforces(
         "targets": target_paths,
         "readme_updates": readme_updates,
         "commit_message": f"Add Codeforces {resolve_codeforces_round_number(main_target)}{normalize_codeforces_problem_id(detection.problem_id)} solution",
-        "metadata": {"targets": target_metadata},
+        "metadata": {
+            "problem_title": target_metadata[0].get("problem_title") if target_metadata else None,
+            "targets": target_metadata,
+        },
     }
 
 
 def collect_tags(args: argparse.Namespace) -> str | None:
-    tags: list[str] = []
+    raw_tags: list[str] = []
     if args.tags:
-        tags.extend(tag.strip() for tag in args.tags.split(",") if tag.strip())
+        raw_tags.extend(tag.strip() for tag in args.tags.split(",") if tag.strip())
     for raw in args.tag:
-        tags.extend(tag.strip() for tag in raw.split(",") if tag.strip())
-    if not tags:
+        raw_tags.extend(tag.strip() for tag in raw.split(",") if tag.strip())
+    if not raw_tags:
         return None
+
+    tag_map = load_tag_map()
+    tags = [normalize_readme_tag(tag, tag_map) for tag in raw_tags]
     return ", ".join(dict.fromkeys(tags))
 
 
@@ -1140,7 +1218,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--platform", choices=sorted(SUPPORTED_PLATFORMS), help="Override detected platform.")
     parser.add_argument("--contest-id", help="Override detected contest id.")
     parser.add_argument("--problem-id", help="Override detected problem id/index.")
-    parser.add_argument("--problem-title", help="Override or provide the AtCoder problem title.")
+    parser.add_argument("--problem-title", help="Override or provide the problem title for the stored filename.")
     parser.add_argument(
         "--contest-kind",
         metavar="{regular,Educational,Others}",

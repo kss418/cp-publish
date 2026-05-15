@@ -51,7 +51,7 @@ Rules:
 - `rating`: use the Codeforces `Problem.rating` value from metadata when available.
 - For AtCoder, use the estimated difficulty from Kenkoooo AtCoder Problems `problem-models.json` when available.
 - If rating is unknown, absent, or unavailable, write `$-$`.
-- Tags must follow `references/solution-tags.md`.
+- Tags must follow `references/solution-tags.md` and must appear as values in `references/solvedac-tag-map.json`.
 - Put one blank line after the header and one blank line between problem entries when there is no result table.
 
 ## Result Table
@@ -149,5 +149,7 @@ A, A1, A2, B, C, D, E, F
 Read `references/solution-tags.md` before writing tags.
 
 Infer tags from the solution implementation. Official Codeforces tags may be used as supporting context, but do not copy them blindly if the submitted code uses a narrower or different technique.
+
+Use only tag names that appear as values in `references/solvedac-tag-map.json`. Convert solved.ac keys through that map, and ask the user instead of writing an unmapped tag.
 
 If tag inference is uncertain, ask the user before updating the README.

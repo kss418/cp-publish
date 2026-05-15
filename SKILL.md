@@ -348,7 +348,7 @@ Before creating or updating AtCoder or Codeforces contest `README.md` files, loa
 
 Use Codeforces metadata for Codeforces problem ratings when available. Use Kenkoooo estimated difficulty for AtCoder ratings when available. If rating metadata is missing, follow `references/readme-format.md` and write `$-$`. Infer README tags from the solution code using `references/solution-tags.md`.
 
-Only load `references/solvedac-tag-map.json` when converting a solved.ac tag key or when the common tags in `references/solution-tags.md` do not cover the technique. If tag inference is uncertain, ask the user before updating the README.
+Use only README tags that appear as values in `references/solvedac-tag-map.json`; solved.ac keys may be converted through that map. Do not invent fallback tag names. If tag inference is uncertain, ask the user before updating the README.
 
 Use `scripts/update_readme.py` to create or update a contest README entry:
 

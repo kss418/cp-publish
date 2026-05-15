@@ -2,13 +2,14 @@
 
 Use these tags for contest README entries. Infer tags from the submitted solution code, not only from the problem statement, Codeforces tags, or solved.ac tags.
 
-The broader solved.ac key mapping lives in `references/solvedac-tag-map.json`. Load that JSON only when converting a solved.ac tag key or when the common tags below do not cover the technique.
+The allowed README tags are the values in `references/solvedac-tag-map.json`. Use that JSON as the source of truth; solved.ac keys may be converted through the map, but tags outside the map must not be invented or written.
 
 ## Format
 
 - Use English tag names.
 - Use `Title_Case` with underscores for multi-word tags.
 - Keep common acronyms uppercase, for example `DP`, `BFS`, `DFS`, `DSU`, `LCA`, `MST`, `SCC`, and `FFT`.
+- Use only tag names that appear as values in `references/solvedac-tag-map.json`.
 - Separate multiple tags with `, `.
 - Prefer 1 to 5 tags per solution.
 - Order tags by importance: main technique first, supporting techniques after.
@@ -51,7 +52,6 @@ Math:
 
 - `Math`
 - `Number_Theory`
-- `GCD`
 - `Sieve`
 - `Prime_Factorization`
 - `Modular_Inverse`
@@ -81,10 +81,8 @@ Data structures:
 - `Queue`
 - `Deque`
 - `Priority_Queue`
-- `Set_Map`
+- `Set`
 - `Hash_Set`
-- `Multiset`
-- `Fenwick_Tree`
 - `Segment_Tree`
 - `Lazy_Propagation`
 - `Sparse_Table`
@@ -130,7 +128,7 @@ Strings:
 
 ## solved.ac Mapping
 
-Use `references/solvedac-tag-map.json` for the full solved.ac key-to-README tag mapping.
+Use `references/solvedac-tag-map.json` for the full solved.ac key-to-README tag mapping. If a solved.ac-style key is not listed in the JSON, ask the user for a mapped tag instead of normalizing it yourself.
 
 Common examples:
 
@@ -148,8 +146,6 @@ lazyprop -> Lazy_Propagation
 mcmf -> Min_Cost_Max_Flow
 aho_corasick -> Aho_Corasick
 ```
-
-For solved.ac-style keys not listed in the JSON, normalize the key by replacing `_` with spaces and converting to `Title_Case`, while preserving common acronyms.
 
 ## Inference Cues
 
