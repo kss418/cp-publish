@@ -186,25 +186,54 @@ def print_status(root: Path) -> None:
     print("gh_auth: ok" if auth.returncode == 0 else "gh_auth: missing")
 
 
+def staged_paths(root: Path) -> set[str]:
+    git = require_tool("git")
+    result = run([git, "diff", "--cached", "--name-only"], cwd=root)
+    return set(result.stdout.splitlines())
+
+
+def normalize_repo_relative(root: Path, value: str) -> str:
+    raw = Path(value)
+    path = raw.resolve() if raw.is_absolute() else (root / raw).resolve()
+    if root not in path.parents and path != root:
+        raise CommandError(f"Refusing to stage path outside repo: {value}")
+    return os.path.relpath(path, root).replace("\\", "/")
+
+
 def commit_paths(root: Path, paths: list[str], message: str) -> None:
     if not paths:
         raise CommandError("Commit requires at least one explicit path.")
 
-    resolved_paths = []
-    for value in paths:
-        path = (root / value).resolve()
-        if root not in path.parents and path != root:
-            raise CommandError(f"Refusing to stage path outside repo: {value}")
-        resolved_paths.append(os.path.relpath(path, root))
-
+    allowed = {normalize_repo_relative(root, value) for value in paths}
     git = require_tool("git")
-    run([git, "add", "--", *resolved_paths], cwd=root, capture=False)
 
-    staged = run([git, "diff", "--cached", "--name-only"], cwd=root).stdout.splitlines()
-    if not staged:
+    before = staged_paths(root)
+    unrelated_before = before - allowed
+    if unrelated_before:
+        raise CommandError(
+            "Refusing to commit because unrelated paths are already staged:\n"
+            + "\n".join(f"- {path}" for path in sorted(unrelated_before))
+        )
+
+    run([git, "add", "--", *sorted(allowed)], cwd=root, capture=False)
+
+    after = staged_paths(root)
+    unrelated_after = after - allowed
+    if unrelated_after:
+        raise CommandError(
+            "Refusing to commit because the index contains unexpected paths:\n"
+            + "\n".join(f"- {path}" for path in sorted(unrelated_after))
+        )
+
+    selected_staged = after & allowed
+    if not selected_staged:
         raise CommandError("No staged changes to commit.")
 
-    run([git, "commit", "-m", message], cwd=root, capture=False)
+    run(
+        [git, "commit", "-m", message, "--", *sorted(selected_staged)],
+        cwd=root,
+        capture=False,
+    )
 
 
 def push_current_branch(root: Path, *, dry_run: bool) -> None:
