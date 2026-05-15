@@ -6,7 +6,6 @@ from pathlib import Path
 
 from .models import ATCODER_NUMERIC_SERIES, Detection, SUPPORTED_PLATFORMS, WEAK_FILE_STEMS
 from .paths import (
-    leading_problem_id,
     normalize_codeforces_contest_group,
     normalize_codeforces_problem_id,
 )
@@ -19,6 +18,34 @@ CASE_INSENSITIVE_FIELDS = {
     "contest_kind",
     "contest_group",
 }
+
+
+def title_suffix_from_stem(stem: str, problem_id: str | None) -> str | None:
+    if not problem_id:
+        return None
+
+    prefix = problem_id.strip()
+    if not stem.lower().startswith(prefix.lower()):
+        return None
+
+    suffix = stem[len(prefix) :].lstrip("_-")
+    if not suffix:
+        return None
+
+    title = re.sub(r"[_-]+", " ", suffix).strip()
+    title = re.sub(r"\s+", " ", title)
+    return title or None
+
+
+def target_style_problem_id(stem: str) -> str:
+    return re.split(r"[_-]", stem, maxsplit=1)[0]
+
+
+def set_path_title(detection: Detection, stem: str, problem_id: str | None) -> None:
+    title = title_suffix_from_stem(stem, problem_id)
+    if title:
+        detection.problem_title = title
+        detection.evidence.append(f"Path title suffix: {title}")
 
 
 def read_source_text(path: Path, max_bytes: int = 200_000) -> str:
@@ -194,14 +221,18 @@ def detect_from_path(path: Path) -> Detection:
             if contest_candidate.isdigit():
                 detection.platform = "atcoder"
                 detection.contest_id = f"{part}{int(contest_candidate):03d}"
-                detection.problem_id = path.stem.split("_", 1)[0].lower()
+                problem_id = target_style_problem_id(path.stem)
+                detection.problem_id = problem_id.lower()
+                set_path_title(detection, path.stem, problem_id)
                 detection.evidence.append("AtCoder path convention")
                 detection.confidence = "medium"
                 return detection
         if part == "past" and idx + 1 < len(parts):
             detection.platform = "atcoder"
             detection.contest_id = "past" + parts[idx + 1]
-            detection.problem_id = path.stem.split("_", 1)[0].lower()
+            problem_id = target_style_problem_id(path.stem)
+            detection.problem_id = problem_id.lower()
+            set_path_title(detection, path.stem, problem_id)
             detection.evidence.append("AtCoder PAST path convention")
             detection.confidence = "medium"
             return detection
@@ -211,9 +242,9 @@ def detect_from_path(path: Path) -> Detection:
             detection.platform = "codeforces"
             detection.contest_kind = "Educational"
             detection.round_number = parts[idx + 3]
-            detection.problem_id = normalize_codeforces_problem_id(
-                leading_problem_id(path.stem)
-            )
+            problem_id = target_style_problem_id(path.stem)
+            detection.problem_id = normalize_codeforces_problem_id(problem_id)
+            set_path_title(detection, path.stem, problem_id)
             detection.evidence.append("Codeforces Educational path convention")
             detection.confidence = "medium"
             return detection
@@ -222,9 +253,9 @@ def detect_from_path(path: Path) -> Detection:
             detection.contest_kind = "Others"
             detection.contest_group = normalize_codeforces_contest_group(raw_parts[idx + 1])
             detection.round_number = parts[idx + 4]
-            detection.problem_id = normalize_codeforces_problem_id(
-                leading_problem_id(path.stem)
-            )
+            problem_id = target_style_problem_id(path.stem)
+            detection.problem_id = normalize_codeforces_problem_id(problem_id)
+            set_path_title(detection, path.stem, problem_id)
             detection.evidence.append(
                 f"Detected Codeforces Others round {parts[idx + 4]} from path"
             )
@@ -232,11 +263,12 @@ def detect_from_path(path: Path) -> Detection:
             return detection
 
     numeric_parts = [part for part in parts if part.isdigit()]
-    problem_id = leading_problem_id(path.stem)
+    problem_id = target_style_problem_id(path.stem)
     if len(numeric_parts) >= 3 and problem_id and re.fullmatch(r"[a-z][0-9]?", problem_id.lower()):
         detection.platform = "codeforces"
         detection.round_number = numeric_parts[-1]
         detection.problem_id = normalize_codeforces_problem_id(problem_id)
+        set_path_title(detection, path.stem, problem_id)
         detection.evidence.append("Codeforces numeric path convention")
         detection.confidence = "medium"
 
