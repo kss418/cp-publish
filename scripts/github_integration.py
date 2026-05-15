@@ -275,19 +275,20 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        root = repo_root(Path(args.repo).resolve())
-
-        if args.command == "status":
-            print_status(root)
-        elif args.command == "auth":
+        if args.command == "auth":
             ensure_auth(
                 login=args.login,
                 setup_git=not args.no_setup_git,
                 open_browser=not args.no_open_browser,
             )
+        elif args.command == "status":
+            root = repo_root(Path(args.repo).resolve())
+            print_status(root)
         elif args.command == "commit":
+            root = repo_root(Path(args.repo).resolve())
             commit_paths(root, args.paths, args.message)
         elif args.command == "push":
+            root = repo_root(Path(args.repo).resolve())
             push_current_branch(root, dry_run=args.dry_run)
         else:
             parser.error(f"Unknown command: {args.command}")
