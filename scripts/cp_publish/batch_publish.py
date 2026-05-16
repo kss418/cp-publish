@@ -18,6 +18,7 @@ from cp_publish.apply_plan import (
     ApplyPlanError,
     changed_and_commit_paths,
     copy_or_move_files,
+    decode_plan_bytes,
     prepare_readme_updates,
     resolved_path,
     resolved_path_list,
@@ -36,6 +37,7 @@ from cp_publish.paths import (
 from cp_publish.planning import build_plan, make_error_plan
 
 
+PLAN_BUNDLE_SCHEMA = "cp-publish.batch.v1"
 README_ENTRY_RE = re.compile(
     r"^\s*([A-Za-z0-9]+)\s*/\s*Rating\s*:\s*\$[^$]*\$\s*/\s*(.+?)\s*$"
 )
@@ -45,6 +47,98 @@ class BatchPublishError(RuntimeError):
     def __init__(self, message: str, returncode: int = 1) -> None:
         super().__init__(message)
         self.returncode = returncode
+
+
+def argument_path(value: str) -> Path:
+    path = Path(value).expanduser()
+    if not path.is_absolute():
+        path = Path.cwd() / path
+    return path.resolve()
+
+
+def validate_plans(value: Any, *, field_name: str = "plans") -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        raise BatchPublishError(f"Batch plan field {field_name!r} must be a list.")
+    plans: list[dict[str, Any]] = []
+    for index, plan in enumerate(value):
+        if not isinstance(plan, dict):
+            raise BatchPublishError(f"Batch plan {field_name}[{index}] must be a JSON object.")
+        plans.append(plan)
+    if not plans:
+        raise BatchPublishError("Batch plan contains no plans.")
+    return plans
+
+
+def batch_plan_bundle(plans: list[dict[str, Any]], args: argparse.Namespace) -> dict[str, Any]:
+    operation = "move" if args.move else "copy"
+    return {
+        "schema": PLAN_BUNDLE_SCHEMA,
+        "operation": operation,
+        "plan_count": len(plans),
+        "plans": plans,
+        "options": {
+            "no_results": bool(args.no_results),
+            "require_results": bool(args.require_results),
+            "overwrite": bool(args.overwrite),
+            "commit_message": args.commit_message,
+        },
+        "suggested_commit_message": args.commit_message or suggested_commit_message(plans),
+    }
+
+
+def write_batch_plan_bundle(path: Path, plans: list[dict[str, Any]], args: argparse.Namespace) -> None:
+    bundle = batch_plan_bundle(plans, args)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(bundle, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    except OSError as exc:
+        raise BatchPublishError(f"Could not write batch plan: {path}: {exc}") from exc
+
+
+def load_batch_plan_bundle(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    try:
+        payload = decode_plan_bytes(path.read_bytes())
+        parsed = json.loads(payload)
+    except (OSError, json.JSONDecodeError) as exc:
+        raise BatchPublishError(f"Could not read batch plan: {path}: {exc}") from exc
+
+    if isinstance(parsed, list):
+        return validate_plans(parsed), {"schema": "bare-plan-list"}
+    if not isinstance(parsed, dict):
+        raise BatchPublishError("Batch plan must be a JSON object or a list of plan objects.")
+
+    plans = validate_plans(parsed.get("plans"))
+    schema = parsed.get("schema")
+    if schema not in {PLAN_BUNDLE_SCHEMA, None}:
+        raise BatchPublishError(f"Unsupported batch plan schema: {schema!r}")
+    return plans, parsed
+
+
+def apply_saved_options(args: argparse.Namespace, bundle: dict[str, Any]) -> None:
+    operation = bundle.get("operation")
+    if args.copy or args.move:
+        requested = "move" if args.move else "copy"
+        if isinstance(operation, str) and operation and operation != requested:
+            raise BatchPublishError(
+                f"Saved batch plan operation is {operation!r}, but command requested {requested!r}."
+            )
+    elif operation == "move":
+        args.move = True
+    elif operation == "copy":
+        args.copy = True
+    else:
+        raise BatchPublishError("Saved batch plan has no operation; pass --copy or --move.")
+
+    options = bundle.get("options")
+    if isinstance(options, dict):
+        if not args.no_results:
+            args.no_results = bool(options.get("no_results", False))
+        if not args.require_results:
+            args.require_results = bool(options.get("require_results", False))
+        if not args.overwrite:
+            args.overwrite = bool(options.get("overwrite", False))
+        if not args.commit_message and isinstance(options.get("commit_message"), str):
+            args.commit_message = options["commit_message"]
 
 
 def is_solution_file(path: Path) -> bool:
@@ -411,10 +505,18 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--no-metadata", action="store_true", help="Do not fetch or read platform metadata.")
     parser.add_argument("--refresh-metadata", action="store_true", help="Refresh cached platform metadata if needed.")
-    action = parser.add_mutually_exclusive_group(required=True)
+    action = parser.add_mutually_exclusive_group(required=False)
     action.add_argument("--copy", action="store_true", help="Copy each source file to its planned target.")
     action.add_argument("--move", action="store_true", help="Move each source file to its planned target.")
     parser.add_argument("--dry-run", action="store_true", help="Validate and show planned changes without writing.")
+    parser.add_argument(
+        "--save-plan",
+        help="Write the built batch plan bundle to this JSON file for later --apply-plan.",
+    )
+    parser.add_argument(
+        "--apply-plan",
+        help="Load a saved batch plan bundle and apply or dry-run it without rebuilding plans.",
+    )
     parser.add_argument(
         "--allow-confirmation",
         action="store_true",
@@ -441,10 +543,26 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.no_results and args.require_results:
         parser.error("--no-results cannot be used with --require-results.")
+    if not args.apply_plan and not (args.copy or args.move):
+        parser.error("one of --copy or --move is required unless --apply-plan is used.")
+    if args.apply_plan and (args.sources or args.from_dir):
+        parser.error("sources and --from-dir cannot be used with --apply-plan.")
     try:
-        sources = collect_sources(args.sources, args.from_dir, args.recursive)
-        validate_shared_overrides(args, len(sources))
-        plans, status = build_batch_plans(args, sources)
+        saved_plan_path = argument_path(args.save_plan) if args.save_plan else None
+        applied_plan_path = argument_path(args.apply_plan) if args.apply_plan else None
+        if applied_plan_path:
+            plans, bundle = load_batch_plan_bundle(applied_plan_path)
+            apply_saved_options(args, bundle)
+            if args.no_results and args.require_results:
+                parser.error("--no-results cannot be used with --require-results.")
+            status = 0
+        else:
+            sources = collect_sources(args.sources, args.from_dir, args.recursive)
+            validate_shared_overrides(args, len(sources))
+            plans, status = build_batch_plans(args, sources)
+            if saved_plan_path:
+                write_batch_plan_bundle(saved_plan_path, plans, args)
+
         if any(plan.get("errors") for plan in plans):
             result = {
                 "dry_run": args.dry_run,
@@ -453,6 +571,10 @@ def main(argv: list[str] | None = None) -> int:
                 "blocked": True,
                 "suggested_commit_message": args.commit_message or suggested_commit_message(plans),
             }
+            if saved_plan_path:
+                result["saved_plan"] = str(saved_plan_path)
+            if applied_plan_path:
+                result["applied_plan"] = str(applied_plan_path)
             print(json.dumps(result, ensure_ascii=False, indent=2))
             return 1
         if any(plan.get("needs_confirmation") for plan in plans) and not args.allow_confirmation:
@@ -464,9 +586,17 @@ def main(argv: list[str] | None = None) -> int:
                 "reason": "one or more plans need confirmation",
                 "suggested_commit_message": args.commit_message or suggested_commit_message(plans),
             }
+            if saved_plan_path:
+                result["saved_plan"] = str(saved_plan_path)
+            if applied_plan_path:
+                result["applied_plan"] = str(applied_plan_path)
             print(json.dumps(result, ensure_ascii=False, indent=2))
             return 1
         result = apply_batch(plans, args)
+        if saved_plan_path:
+            result["saved_plan"] = str(saved_plan_path)
+        if applied_plan_path:
+            result["applied_plan"] = str(applied_plan_path)
     except (BatchPublishError, ApplyPlanError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return getattr(exc, "returncode", 1)

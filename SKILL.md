@@ -158,6 +158,8 @@ Use `scripts/cp_publish/apply_plan.py` instead of hand-composing copy/move and R
 
 For multiple solution files, prefer `scripts/cp_publish/batch_publish.py` over repeated single-file `plan_publish.py` and `apply_plan.py` calls. It builds one plan per source, prints one batch dry-run summary, applies plans in one loop, shares contest result fetches by command so each contest/user result is fetched once, and returns combined `commit_paths` plus a `suggested_commit_message`.
 
+For non-trivial batches, save the dry-run plan with `--save-plan .cp-publish-plans/batch.json`, inspect the JSON, then apply it with `--apply-plan .cp-publish-plans/batch.json`. This reuses the plans from dry-run and skips rebuilding detection/metadata during apply.
+
 Use `--from-dir <dir>` for a contest folder, or pass multiple file paths directly. Use `--tags-from-readme` when migrating an existing contest folder that already has README entries, and `--problem-id-from-filename` only when the filename prefix is trusted as the problem id.
 
 ```powershell
@@ -187,13 +189,21 @@ rm "$plan_dir/cp-plan.json"
 Batch example:
 
 ```powershell
-python "$skillRoot\scripts\cp_publish\batch_publish.py" --from-dir C:\path\to\contest --move --dry-run --tags-from-readme
-python "$skillRoot\scripts\cp_publish\batch_publish.py" --from-dir C:\path\to\contest --move --tags-from-readme
+$planDir = Join-Path $repo ".cp-publish-plans"
+New-Item -ItemType Directory -Force -Path $planDir | Out-Null
+$batchPlan = Join-Path $planDir "batch.json"
+python "$skillRoot\scripts\cp_publish\batch_publish.py" --from-dir C:\path\to\contest --move --dry-run --tags-from-readme --save-plan "$batchPlan"
+python "$skillRoot\scripts\cp_publish\batch_publish.py" --apply-plan "$batchPlan"
+Remove-Item -LiteralPath "$batchPlan"
 ```
 
 ```sh
-python3 "$skill_root/scripts/cp_publish/batch_publish.py" --from-dir /path/to/contest --move --dry-run --tags-from-readme
-python3 "$skill_root/scripts/cp_publish/batch_publish.py" --from-dir /path/to/contest --move --tags-from-readme
+plan_dir="$repo/.cp-publish-plans"
+mkdir -p "$plan_dir"
+batch_plan="$plan_dir/batch.json"
+python3 "$skill_root/scripts/cp_publish/batch_publish.py" --from-dir /path/to/contest --move --dry-run --tags-from-readme --save-plan "$batch_plan"
+python3 "$skill_root/scripts/cp_publish/batch_publish.py" --apply-plan "$batch_plan"
+rm "$batch_plan"
 ```
 
 ## Metadata And README Rules
@@ -216,7 +226,7 @@ Use only README tags that appear as values in `references/solvedac-tag-map.json`
 4. Identify the candidate solution file.
 5. Build and inspect a plan.
 6. Resolve any `needs_confirmation`, warnings, or conflicts with the user.
-7. For one file, run `apply_plan.py --copy --dry-run`, inspect the JSON, then run without `--dry-run`; for multiple files, use `batch_publish.py --dry-run`, then rerun without `--dry-run`.
+7. For one file, run `apply_plan.py --copy --dry-run`, inspect the JSON, then run without `--dry-run`; for multiple files, run `batch_publish.py --dry-run --save-plan ...`, inspect the JSON, then apply with `batch_publish.py --apply-plan ...`.
 8. Use returned `commit_paths` as the explicit commit target list.
 9. Do not compile or run solution code unless the user explicitly asked for solution verification.
 10. Commit with the planned commit message or a concise equivalent.

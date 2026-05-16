@@ -255,18 +255,28 @@ rm "$plan_dir/cp-plan.json"
 
 Use `scripts/cp_publish/batch_publish.py` when publishing more than one source file. It builds a plan for each source, validates the batch, prints one JSON dry-run summary, shares result fetches across README updates by command, applies all file operations in one loop, and returns combined `commit_paths` plus `suggested_commit_message`.
 
+For non-trivial batches, save the dry-run plan and apply that saved plan. This avoids rebuilding detection and metadata work during apply:
+
 Folder migration example:
 
 ```powershell
 Set-Location $repo
-python "$skillRoot\scripts\cp_publish\batch_publish.py" --from-dir C:\path\to\contest --move --dry-run --tags-from-readme
-python "$skillRoot\scripts\cp_publish\batch_publish.py" --from-dir C:\path\to\contest --move --tags-from-readme
+$planDir = Join-Path $repo ".cp-publish-plans"
+New-Item -ItemType Directory -Force -Path $planDir | Out-Null
+$batchPlan = Join-Path $planDir "batch.json"
+python "$skillRoot\scripts\cp_publish\batch_publish.py" --from-dir C:\path\to\contest --move --dry-run --tags-from-readme --save-plan "$batchPlan"
+python "$skillRoot\scripts\cp_publish\batch_publish.py" --apply-plan "$batchPlan"
+Remove-Item -LiteralPath "$batchPlan"
 ```
 
 ```sh
 cd "$repo"
-python3 "$skill_root/scripts/cp_publish/batch_publish.py" --from-dir /path/to/contest --move --dry-run --tags-from-readme
-python3 "$skill_root/scripts/cp_publish/batch_publish.py" --from-dir /path/to/contest --move --tags-from-readme
+plan_dir="$repo/.cp-publish-plans"
+mkdir -p "$plan_dir"
+batch_plan="$plan_dir/batch.json"
+python3 "$skill_root/scripts/cp_publish/batch_publish.py" --from-dir /path/to/contest --move --dry-run --tags-from-readme --save-plan "$batch_plan"
+python3 "$skill_root/scripts/cp_publish/batch_publish.py" --apply-plan "$batch_plan"
+rm "$batch_plan"
 ```
 
 Multiple explicit files:
@@ -286,6 +296,8 @@ Useful options:
 - `--no-results`: skip result lookup; by default, batch publishing fetches each unique contest/user result once.
 - `--require-results`: fail the batch if a required result fetch fails.
 - `--allow-confirmation`: apply plans that were already reviewed and confirmed.
+- `--save-plan <path>`: save the built batch plan bundle after planning.
+- `--apply-plan <path>`: load a saved batch plan bundle and apply or dry-run it without rebuilding plans.
 
 If any plan has errors or `needs_confirmation` and `--allow-confirmation` is not passed, the batch prints a blocked summary and writes nothing.
 
