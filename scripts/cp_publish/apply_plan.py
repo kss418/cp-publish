@@ -408,7 +408,7 @@ def apply_plan(plan: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]
 
     result_fetches: list[dict[str, Any]] = []
     warnings: list[str] = []
-    with_results = args.with_results or args.require_results
+    with_results = not args.no_results or args.require_results
 
     with tempfile.TemporaryDirectory(prefix="cp-publish-results-") as temp_dir_name:
         prepared_readme_updates, result_fetches, result_warnings = prepare_readme_updates(
@@ -481,12 +481,17 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--with-results",
         action="store_true",
-        help="Fetch contest results from the plan and pass them to README updates.",
+        help="Deprecated compatibility flag; contest results are fetched by default.",
+    )
+    parser.add_argument(
+        "--no-results",
+        action="store_true",
+        help="Skip contest result fetches and update only solution README entries.",
     )
     parser.add_argument(
         "--require-results",
         action="store_true",
-        help="Fetch contest results and fail if they cannot be fetched.",
+        help="Fail if default contest result fetches cannot be completed.",
     )
     parser.add_argument("--overwrite", action="store_true", help="Allow replacing existing target files.")
     return parser
@@ -495,6 +500,8 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    if args.no_results and args.require_results:
+        parser.error("--no-results cannot be used with --require-results.")
     try:
         result = apply_plan(load_plan(args.plan), args)
     except ApplyPlanError as exc:

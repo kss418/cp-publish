@@ -234,7 +234,7 @@ $planDir = Join-Path $repo ".cp-publish-plans"
 New-Item -ItemType Directory -Force -Path $planDir | Out-Null
 python "$skillRoot\scripts\cp_publish\plan_publish.py" C:\path\to\solution.cpp --tags DP,Greedy > "$planDir\cp-plan.json"
 python "$skillRoot\scripts\cp_publish\apply_plan.py" --plan "$planDir\cp-plan.json" --copy --dry-run
-python "$skillRoot\scripts\cp_publish\apply_plan.py" --plan "$planDir\cp-plan.json" --copy --with-results
+python "$skillRoot\scripts\cp_publish\apply_plan.py" --plan "$planDir\cp-plan.json" --copy
 Remove-Item -LiteralPath "$planDir\cp-plan.json"
 ```
 
@@ -243,11 +243,11 @@ plan_dir="$repo/.cp-publish-plans"
 mkdir -p "$plan_dir"
 python3 "$skill_root/scripts/cp_publish/plan_publish.py" /path/to/solution.cpp --tags DP,Greedy > "$plan_dir/cp-plan.json"
 python3 "$skill_root/scripts/cp_publish/apply_plan.py" --plan "$plan_dir/cp-plan.json" --copy --dry-run
-python3 "$skill_root/scripts/cp_publish/apply_plan.py" --plan "$plan_dir/cp-plan.json" --copy --with-results
+python3 "$skill_root/scripts/cp_publish/apply_plan.py" --plan "$plan_dir/cp-plan.json" --copy
 rm "$plan_dir/cp-plan.json"
 ```
 
-`apply_plan.py` verifies the source file, creates target parents, copies or moves the solution, calls `scripts/cp_publish/update_readme.py`, and prints `changed_paths` plus `commit_paths`. With `--with-results`, it runs each README update's `contest_result_command`, passes the fetched JSON to `update_readme.py --results-json`, and reports any fetch failures as warnings while still updating the solution entry. Use `--require-results` when result fetch failure should fail the apply. It refuses plans with `needs_confirmation: true` unless the user has explicitly confirmed and the command is rerun with `--allow-confirmation`.
+`apply_plan.py` verifies the source file, creates target parents, copies or moves the solution, runs each README update's `contest_result_command` by default, passes fetched JSON to `update_readme.py --results-json`, and prints `changed_paths` plus `commit_paths`. Result fetch failures are warnings while the solution entry still updates. Use `--no-results` only when result lookup should be skipped, and use `--require-results` when result fetch failure should fail the apply. It refuses plans with `needs_confirmation: true` unless the user has explicitly confirmed and the command is rerun with `--allow-confirmation`.
 
 ## Batch Plan And Apply
 
@@ -281,7 +281,8 @@ Useful options:
 
 - `--tags-from-readme`: use existing per-problem README tags when migrating an old contest folder.
 - `--problem-id-from-filename`: use trusted filename prefixes such as `A`, `C1`, or `G-1` as problem IDs.
-- `--with-results`: fetch contest results once per unique contest/user command; omit by default for speed.
+- `--no-results`: skip result lookup; by default, batch publishing fetches each unique contest/user result once.
+- `--require-results`: fail the batch if a required result fetch fails.
 - `--allow-confirmation`: apply plans that were already reviewed and confirmed.
 
 If any plan has errors or `needs_confirmation` and `--allow-confirmation` is not passed, the batch prints a blocked summary and writes nothing.

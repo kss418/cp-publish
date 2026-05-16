@@ -167,7 +167,7 @@ $planDir = Join-Path $repo ".cp-publish-plans"
 New-Item -ItemType Directory -Force -Path $planDir | Out-Null
 python "$skillRoot\scripts\cp_publish\plan_publish.py" C:\path\to\solution.cpp --tags DP,Greedy > "$planDir\cp-plan.json"
 python "$skillRoot\scripts\cp_publish\apply_plan.py" --plan "$planDir\cp-plan.json" --copy --dry-run
-python "$skillRoot\scripts\cp_publish\apply_plan.py" --plan "$planDir\cp-plan.json" --copy --with-results
+python "$skillRoot\scripts\cp_publish\apply_plan.py" --plan "$planDir\cp-plan.json" --copy
 Remove-Item -LiteralPath "$planDir\cp-plan.json"
 ```
 
@@ -178,11 +178,11 @@ plan_dir="$repo/.cp-publish-plans"
 mkdir -p "$plan_dir"
 python3 "$skill_root/scripts/cp_publish/plan_publish.py" /path/to/solution.cpp --tags DP,Greedy > "$plan_dir/cp-plan.json"
 python3 "$skill_root/scripts/cp_publish/apply_plan.py" --plan "$plan_dir/cp-plan.json" --copy --dry-run
-python3 "$skill_root/scripts/cp_publish/apply_plan.py" --plan "$plan_dir/cp-plan.json" --copy --with-results
+python3 "$skill_root/scripts/cp_publish/apply_plan.py" --plan "$plan_dir/cp-plan.json" --copy
 rm "$plan_dir/cp-plan.json"
 ```
 
-`apply_plan.py` verifies the source file, creates target parents, copies or moves the solution, calls `scripts/cp_publish/update_readme.py`, and prints `changed_paths` plus `commit_paths`. Use `--with-results` to fetch contest results from the plan and update the README `## Results` table when possible. Use `--require-results` only when a result fetch failure should fail the apply. For multiple Codeforces targets, copy the same source to every target; do not move to only one target.
+`apply_plan.py` verifies the source file, creates target parents, copies or moves the solution, fetches contest results from the plan by default, calls `scripts/cp_publish/update_readme.py`, and prints `changed_paths` plus `commit_paths`. Use `--no-results` only when result lookup should be skipped. Use `--require-results` only when a result fetch failure should fail the apply. For multiple Codeforces targets, copy the same source to every target; do not move to only one target.
 
 Batch example:
 

@@ -291,7 +291,7 @@ def apply_batch(plans: list[dict[str, Any]], args: argparse.Namespace) -> dict[s
 
     result_fetches: list[dict[str, Any]] = []
     warnings: list[str] = []
-    with_results = args.with_results or args.require_results
+    with_results = not args.no_results or args.require_results
 
     with tempfile.TemporaryDirectory(prefix="cp-publish-results-") as temp_dir_name:
         prepared_updates, result_fetches, result_warnings = prepare_readme_updates(
@@ -420,7 +420,16 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Apply plans whose needs_confirmation field is true.",
     )
-    parser.add_argument("--with-results", action="store_true", help="Fetch contest results once per unique command.")
+    parser.add_argument(
+        "--with-results",
+        action="store_true",
+        help="Deprecated compatibility flag; contest results are fetched by default.",
+    )
+    parser.add_argument(
+        "--no-results",
+        action="store_true",
+        help="Skip contest result fetches and update only solution README entries.",
+    )
     parser.add_argument("--require-results", action="store_true", help="Fail if contest results cannot be fetched.")
     parser.add_argument("--overwrite", action="store_true", help="Allow replacing existing target files.")
     parser.add_argument("--commit-message", help="Override the suggested batch commit message.")
@@ -430,6 +439,8 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    if args.no_results and args.require_results:
+        parser.error("--no-results cannot be used with --require-results.")
     try:
         sources = collect_sources(args.sources, args.from_dir, args.recursive)
         validate_shared_overrides(args, len(sources))
