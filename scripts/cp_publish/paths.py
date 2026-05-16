@@ -96,7 +96,13 @@ def rating_markdown(value: Any) -> str:
 def safe_title_slug(title: str | None) -> str | None:
     if not title:
         return None
-    slug = re.sub(r"[^\w]+", "_", title.strip(), flags=re.UNICODE)
+    symbol_title_slugs = {
+        "~": "Tilde",
+    }
+    stripped = title.strip()
+    if stripped in symbol_title_slugs:
+        return symbol_title_slugs[stripped]
+    slug = re.sub(r"[^\w]+", "_", stripped, flags=re.UNICODE)
     slug = re.sub(r"_+", "_", slug).strip("._ ")
     return slug or None
 

@@ -89,10 +89,10 @@ def build_contest_result_command(platform: str, contest_id: str, user_id: str | 
 def title_from_detection_or_metadata(
     detection: Detection, metadata_title: str | None
 ) -> str | None:
-    filename_suffix_title = any(
-        evidence.startswith("Filename title suffix:") for evidence in detection.evidence
+    detected_suffix_title = any(
+        evidence.startswith(("Filename title suffix:", "Path title suffix:")) for evidence in detection.evidence
     )
-    if filename_suffix_title and metadata_title:
+    if detected_suffix_title and metadata_title:
         return metadata_title
     return detection.problem_title or metadata_title
 
@@ -134,7 +134,7 @@ def plan_atcoder(
     metadata = load_atcoder_metadata(args.no_metadata, args.refresh_metadata, warnings)
     task_problem_id = f"{detection.contest_id.lower()}_{detection.problem_id.lower()}"
     problem_title = title_from_detection_or_metadata(
-        detection, atcoder_problem_title(task_problem_id, metadata)
+        detection, atcoder_problem_title(task_problem_id, metadata, warnings)
     )
     rating = rating_markdown(args.rating) if args.rating else atcoder_rating(task_problem_id, metadata)
     ext = normalize_ext(source)

@@ -211,7 +211,9 @@ rm "$batch_plan"
 
 Load `references/path-rules.md` when checking placement or target paths. Load `references/readme-format.md` and `references/solution-tags.md` before README-specific edits or tag inference.
 
-Use Codeforces metadata for Codeforces contest names, contest kinds, problem names, and ratings. Use AtCoder/Kenkoooo metadata for AtCoder problem titles and estimated difficulty. For `plan_publish.py`, use `--refresh-metadata` only when the user explicitly requests fresh metadata. For metadata and result helper scripts, use `--refresh`.
+Use Codeforces metadata for Codeforces contest names, contest kinds, problem names, and ratings. Use AtCoder/Kenkoooo metadata for AtCoder problem titles and estimated difficulty; if Kenkoooo title resources fail, rely on the bundled official AtCoder tasks-page fallback, which is cached per contest. For `plan_publish.py`, use `--refresh-metadata` only when the user explicitly requests fresh metadata. For metadata and result helper scripts, use `--refresh`.
+
+When migrating an existing AtCoder contest folder with `--tags-from-readme`, preserve each problem's README rating from the existing entry if fresh estimated-difficulty metadata is unavailable. Do not let a Kenkoooo outage replace known ratings with `$-$`.
 
 For Codeforces contest path classification, follow `references/codeforces-contest-rule-map.json` as the canonical editable map. Prefer updating that map for named rounds, special contests, exact one-off title overrides, and Others group aliases instead of adding hard-coded contest-title branches.
 

@@ -39,7 +39,7 @@ from cp_publish.planning import build_plan, make_error_plan
 
 PLAN_BUNDLE_SCHEMA = "cp-publish.batch.v1"
 README_ENTRY_RE = re.compile(
-    r"^\s*([A-Za-z0-9]+)\s*/\s*Rating\s*:\s*\$[^$]*\$\s*/\s*(.+?)\s*$"
+    r"^\s*([A-Za-z0-9]+)\s*/\s*Rating\s*:\s*(.*?)\s*/\s*(.+?)\s*$"
 )
 
 
@@ -187,23 +187,35 @@ def infer_problem_id_from_filename(path: Path) -> str | None:
     return token.upper()
 
 
-def read_readme_tags(readme: Path) -> dict[str, str]:
+def read_readme_entries(readme: Path) -> dict[str, dict[str, str]]:
     if not readme.exists() or not readme.is_file():
         return {}
-    tags_by_problem: dict[str, str] = {}
-    for line in readme.read_text(encoding="utf-8", errors="replace").splitlines():
+    entries_by_problem: dict[str, dict[str, str]] = {}
+    for line in readme.read_text(encoding="utf-8-sig", errors="replace").splitlines():
         match = README_ENTRY_RE.match(line)
         if not match:
             continue
-        tags_by_problem[match.group(1).upper()] = match.group(2).strip()
-    return tags_by_problem
+        entries_by_problem[match.group(1).upper()] = {
+            "rating": match.group(2).strip(),
+            "tags": match.group(3).strip(),
+        }
+    return entries_by_problem
 
 
 def tags_from_readme(source: Path) -> str | None:
     problem_id = infer_problem_id_from_filename(source)
     if not problem_id:
         return None
-    return read_readme_tags(source.parent / "README.md").get(problem_id)
+    entry = read_readme_entries(source.parent / "README.md").get(problem_id)
+    return entry.get("tags") if entry else None
+
+
+def rating_from_readme(source: Path) -> str | None:
+    problem_id = infer_problem_id_from_filename(source)
+    if not problem_id:
+        return None
+    entry = read_readme_entries(source.parent / "README.md").get(problem_id)
+    return entry.get("rating") if entry else None
 
 
 def validate_shared_overrides(args: argparse.Namespace, source_count: int) -> None:
@@ -227,6 +239,9 @@ def plan_args_for_source(args: argparse.Namespace, source: Path) -> argparse.Nam
     tags = args.tags
     if not tags and not args.tag and args.tags_from_readme:
         tags = tags_from_readme(source)
+    rating = args.rating
+    if not rating and args.tags_from_readme:
+        rating = rating_from_readme(source)
 
     problem_id = args.problem_id
     if not problem_id and args.problem_id_from_filename:
@@ -244,7 +259,7 @@ def plan_args_for_source(args: argparse.Namespace, source: Path) -> argparse.Nam
         round_number=args.round_number,
         contest_group=args.contest_group,
         additional_target=list(args.additional_target),
-        rating=args.rating,
+        rating=rating,
         tags=tags,
         tag=list(args.tag),
         no_metadata=args.no_metadata,

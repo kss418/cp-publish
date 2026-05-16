@@ -4,9 +4,11 @@
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import os
 import platform
+import re
 import sys
 import time
 import urllib.error
@@ -24,6 +26,7 @@ except ImportError:
 
 
 RESOURCE_BASE = "https://kenkoooo.com/atcoder/resources"
+ATCODER_CONTEST_BASE = "https://atcoder.jp/contests"
 DEFAULT_MAX_AGE_SECONDS = 24 * 60 * 60
 DEFAULT_TIMEOUT_SECONDS = 20
 MIN_API_INTERVAL_SECONDS = 1.1
@@ -57,6 +60,11 @@ def default_cache_dir() -> Path:
 
 def cache_path(cache_dir: Path, resource: str) -> Path:
     return cache_dir / f"{resource}.json"
+
+
+def official_tasks_cache_path(cache_dir: Path, contest_id: str) -> Path:
+    safe_contest = re.sub(r"[^a-zA-Z0-9_-]+", "_", contest_id.strip().lower())
+    return cache_path(cache_dir, f"official-tasks-{safe_contest}")
 
 
 def read_cache(path: Path, max_age_seconds: int) -> dict[str, Any] | None:
@@ -117,6 +125,122 @@ def fetch_resource(resource: str, timeout: int) -> dict[str, Any]:
         "fetched_at_unix": int(time.time()),
         "result": payload,
     }
+
+
+def strip_html_tags(value: str) -> str:
+    return html.unescape(re.sub(r"<[^>]+>", "", value)).strip()
+
+
+def official_tasks_url(contest_id: str) -> str:
+    return f"{ATCODER_CONTEST_BASE}/{contest_id.lower()}/tasks"
+
+
+def problem_label_from_id(problem_id: str) -> str:
+    suffix = problem_id.rsplit("_", 1)[-1]
+    if suffix.lower() == "ex":
+        return "Ex"
+    return suffix.upper()
+
+
+def parse_official_tasks(contest_id: str, body: str) -> list[dict[str, Any]]:
+    contest = re.escape(contest_id.lower())
+    row_re = re.compile(r"<tr\b[^>]*>(.*?)</tr>", re.IGNORECASE | re.DOTALL)
+    link_re = re.compile(
+        rf'href="/contests/{contest}/tasks/({contest}_[a-z0-9]+)"[^>]*>(.*?)</a>',
+        re.IGNORECASE | re.DOTALL,
+    )
+    tasks: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for row in row_re.findall(body):
+        links = link_re.findall(row)
+        if len(links) < 2:
+            continue
+        problem_id = links[1][0].lower()
+        if problem_id in seen:
+            continue
+        title = strip_html_tags(links[1][1])
+        if not title:
+            continue
+        seen.add(problem_id)
+        tasks.append(
+            {
+                "id": problem_id,
+                "contest_id": contest_id.lower(),
+                "problem_index": problem_label_from_id(problem_id),
+                "name": title,
+                "title": title,
+            }
+        )
+    return tasks
+
+
+def fetch_official_contest_tasks(contest_id: str, timeout: int) -> dict[str, Any]:
+    url = official_tasks_url(contest_id)
+    request = urllib.request.Request(
+        url,
+        headers={"User-Agent": USER_AGENT, "Accept-Language": "en"},
+    )
+
+    try:
+        with http_support.open_url(request, timeout=timeout) as response:
+            body = response.read().decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as exc:
+        raise AtCoderMetadataError(f"AtCoder tasks page HTTP {exc.code}: {url}") from exc
+    except urllib.error.URLError as exc:
+        raise AtCoderMetadataError(
+            f"Failed to reach AtCoder tasks page: {http_support.format_url_error(exc)}"
+        ) from exc
+    except TimeoutError as exc:
+        raise AtCoderMetadataError("Timed out while fetching AtCoder tasks page.") from exc
+
+    tasks = parse_official_tasks(contest_id, body)
+    if not tasks:
+        raise AtCoderMetadataError(f"AtCoder tasks page did not contain task titles: {url}")
+    return {
+        "source": "official-tasks-page",
+        "resource": "official-tasks",
+        "contest_id": contest_id.lower(),
+        "url": url,
+        "fetched_at_unix": int(time.time()),
+        "result": tasks,
+    }
+
+
+def load_official_contest_tasks(
+    contest_id: str,
+    *,
+    cache_dir: Path,
+    max_age_seconds: int,
+    refresh: bool,
+    no_cache: bool,
+    timeout: int,
+) -> dict[str, Any]:
+    path = official_tasks_cache_path(cache_dir, contest_id)
+
+    if not refresh and not no_cache:
+        cached = read_cache(path, max_age_seconds)
+        if cached is not None:
+            return cached
+
+    data = fetch_official_contest_tasks(contest_id, timeout)
+    if not no_cache:
+        write_cache(path, data)
+    return data
+
+
+def contest_id_from_problem_id(problem_id: str) -> str | None:
+    if "_" not in problem_id:
+        return None
+    contest_id = problem_id.rsplit("_", 1)[0].strip().lower()
+    return contest_id or None
+
+
+def lookup_official_problem(problem_id: str, **kwargs: Any) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    contest_id = contest_id_from_problem_id(problem_id)
+    if not contest_id:
+        return None, None
+    data = load_official_contest_tasks(contest_id, **kwargs)
+    return find_problem(data.get("result"), problem_id.lower()), data
 
 
 def load_resource(

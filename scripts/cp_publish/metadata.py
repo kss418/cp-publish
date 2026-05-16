@@ -25,10 +25,18 @@ def load_atcoder_metadata(no_metadata: bool, refresh: bool, warnings: list[str])
             "no_cache": False,
             "timeout": atcoder_metadata.DEFAULT_TIMEOUT_SECONDS,
         }
-        problems = atcoder_metadata.load_resource("problems", **fetch_kwargs).get("result")
-        merged = atcoder_metadata.load_resource("merged-problems", **fetch_kwargs).get("result")
-        ratings = atcoder_metadata.load_resource("ratings", **fetch_kwargs).get("result")
-        return {"module": atcoder_metadata, "problems": problems, "merged": merged, "ratings": ratings}
+        metadata: dict[str, Any] = {"module": atcoder_metadata, "fetch_kwargs": fetch_kwargs}
+        for resource, key, default in (
+            ("problems", "problems", []),
+            ("merged-problems", "merged", []),
+            ("ratings", "ratings", {}),
+        ):
+            try:
+                metadata[key] = atcoder_metadata.load_resource(resource, **fetch_kwargs).get("result")
+            except Exception as exc:  # noqa: BLE001 - official AtCoder fallback may still provide titles
+                metadata[key] = default
+                warnings.append(f"AtCoder {resource} metadata unavailable: {exc}")
+        return metadata
     except Exception as exc:  # noqa: BLE001 - plan should degrade to confirmation instead of crashing
         warnings.append(f"AtCoder metadata unavailable: {exc}")
         return {}
@@ -56,7 +64,7 @@ def load_codeforces_metadata(no_metadata: bool, refresh: bool, warnings: list[st
         return {}
 
 
-def atcoder_problem_title(problem_id: str, metadata: dict[str, Any]) -> str | None:
+def atcoder_problem_title(problem_id: str, metadata: dict[str, Any], warnings: list[str] | None = None) -> str | None:
     module = metadata.get("module")
     if not module:
         return None
@@ -65,7 +73,20 @@ def atcoder_problem_title(problem_id: str, metadata: dict[str, Any]) -> str | No
     if title:
         return title
     problem = module.find_problem(metadata.get("merged", []), problem_id)
-    return module.problem_title(problem)
+    title = module.problem_title(problem)
+    if title:
+        return title
+
+    fetch_kwargs = metadata.get("fetch_kwargs")
+    if not isinstance(fetch_kwargs, dict):
+        return None
+    try:
+        official_problem, _official_data = module.lookup_official_problem(problem_id, **fetch_kwargs)
+    except Exception as exc:  # noqa: BLE001 - title fallback should not crash planning
+        if warnings is not None:
+            warnings.append(f"AtCoder official tasks title fallback unavailable: {exc}")
+        return None
+    return module.problem_title(official_problem)
 
 
 def atcoder_rating(problem_id: str, metadata: dict[str, Any]) -> str:

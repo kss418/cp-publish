@@ -291,7 +291,7 @@ python3 "$skill_root/scripts/cp_publish/batch_publish.py" --move --dry-run --tag
 
 Useful options:
 
-- `--tags-from-readme`: use existing per-problem README tags when migrating an old contest folder.
+- `--tags-from-readme`: use existing per-problem README tags and ratings when migrating an old contest folder.
 - `--problem-id-from-filename`: use trusted filename prefixes such as `A`, `C1`, or `G-1` as problem IDs.
 - `--no-results`: skip result lookup; by default, batch publishing fetches each unique contest/user result once.
 - `--require-results`: fail the batch if a required result fetch fails.
