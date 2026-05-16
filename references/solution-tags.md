@@ -8,7 +8,7 @@ The allowed README tags are the values in `references/solvedac-tag-map.json`. Us
 
 - Use English tag names.
 - Use `Title_Case` with underscores for multi-word tags.
-- Keep common acronyms uppercase, for example `DP`, `BFS`, `DFS`, `DSU`, `LCA`, `MST`, `SCC`, and `FFT`.
+- Keep common acronyms uppercase, for example `DP`, `BFS`, `DFS`, `DSU`, `LCA`, `MST`, `SCC`, `FFT`, `ETT`, `MCMF`, `CHT`, `MFMC`, and `DNC`.
 - Use only tag names that appear as values in `references/solvedac-tag-map.json`.
 - Separate multiple tags with `, `.
 - Prefer 1 to 5 tags per solution.
@@ -41,6 +41,7 @@ General:
 - `Sweeping`
 - `Binary_Search`
 - `Parametric_Search`
+- `DNC`
 - `Two_Pointers`
 - `Sliding_Window`
 - `Prefix_Sum`
@@ -87,6 +88,7 @@ Data structures:
 - `Lazy_Propagation`
 - `Sparse_Table`
 - `Sqrt_Decomposition`
+- `CHT`
 - `Mo`
 
 Graphs and trees:
@@ -107,11 +109,12 @@ Graphs and trees:
 - `SCC`
 - `BCC`
 - `LCA`
-- `Euler_Tour`
+- `ETT`
 - `Bipartite_Graph`
 - `Bipartite_Matching`
 - `Max_Flow`
-- `Min_Cost_Max_Flow`
+- `MCMF`
+- `MFMC`
 - `HLD`
 - `Centroid_Decomposition`
 
@@ -143,7 +146,16 @@ binary_search -> Binary_Search
 disjoint_set -> DSU
 segtree -> Segment_Tree
 lazyprop -> Lazy_Propagation
-mcmf -> Min_Cost_Max_Flow
+divide_and_conquer -> DNC
+euler_tour_technique -> ETT
+mcmf -> MCMF
+cht -> CHT
+mfmc -> MFMC
+Euler_Tour -> ETT
+Min_Cost_Max_Flow -> MCMF
+Convex_Hull_Trick -> CHT
+Max_Flow_Min_Cut -> MFMC
+Divide_And_Conquer -> DNC
 aho_corasick -> Aho_Corasick
 ```
 
