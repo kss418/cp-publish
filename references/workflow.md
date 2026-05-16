@@ -249,6 +249,43 @@ rm "$plan_dir/cp-plan.json"
 
 `apply_plan.py` verifies the source file, creates target parents, copies or moves the solution, calls `scripts/cp_publish/update_readme.py`, and prints `changed_paths` plus `commit_paths`. With `--with-results`, it runs each README update's `contest_result_command`, passes the fetched JSON to `update_readme.py --results-json`, and reports any fetch failures as warnings while still updating the solution entry. Use `--require-results` when result fetch failure should fail the apply. It refuses plans with `needs_confirmation: true` unless the user has explicitly confirmed and the command is rerun with `--allow-confirmation`.
 
+## Batch Plan And Apply
+
+Use `scripts/cp_publish/batch_publish.py` when publishing more than one source file. It builds a plan for each source, validates the batch, prints one JSON dry-run summary, shares result fetches across README updates by command, applies all file operations in one loop, and returns combined `commit_paths` plus `suggested_commit_message`.
+
+Folder migration example:
+
+```powershell
+Set-Location $repo
+python "$skillRoot\scripts\cp_publish\batch_publish.py" --from-dir C:\path\to\contest --move --dry-run --tags-from-readme
+python "$skillRoot\scripts\cp_publish\batch_publish.py" --from-dir C:\path\to\contest --move --tags-from-readme
+```
+
+```sh
+cd "$repo"
+python3 "$skill_root/scripts/cp_publish/batch_publish.py" --from-dir /path/to/contest --move --dry-run --tags-from-readme
+python3 "$skill_root/scripts/cp_publish/batch_publish.py" --from-dir /path/to/contest --move --tags-from-readme
+```
+
+Multiple explicit files:
+
+```powershell
+python "$skillRoot\scripts\cp_publish\batch_publish.py" --move --dry-run --tags DP,Greedy C:\path\to\A.cpp C:\path\to\B.cpp
+```
+
+```sh
+python3 "$skill_root/scripts/cp_publish/batch_publish.py" --move --dry-run --tags DP,Greedy /path/to/A.cpp /path/to/B.cpp
+```
+
+Useful options:
+
+- `--tags-from-readme`: use existing per-problem README tags when migrating an old contest folder.
+- `--problem-id-from-filename`: use trusted filename prefixes such as `A`, `C1`, or `G-1` as problem IDs.
+- `--with-results`: fetch contest results once per unique contest/user command; omit by default for speed.
+- `--allow-confirmation`: apply plans that were already reviewed and confirmed.
+
+If any plan has errors or `needs_confirmation` and `--allow-confirmation` is not passed, the batch prints a blocked summary and writes nothing.
+
 ## README Updates
 
 Use `scripts/cp_publish/update_readme.py` directly only when applying a full plan is not appropriate:

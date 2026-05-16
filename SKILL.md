@@ -156,6 +156,10 @@ When asking, show the source path, platform, contest ID, Codeforces round/group/
 
 Use `scripts/cp_publish/apply_plan.py` instead of hand-composing copy/move and README commands.
 
+For multiple solution files, prefer `scripts/cp_publish/batch_publish.py` over repeated single-file `plan_publish.py` and `apply_plan.py` calls. It builds one plan per source, prints one batch dry-run summary, applies plans in one loop, shares contest result fetches by command so each contest/user result is fetched once, and returns combined `commit_paths` plus a `suggested_commit_message`.
+
+Use `--from-dir <dir>` for a contest folder, or pass multiple file paths directly. Use `--tags-from-readme` when migrating an existing contest folder that already has README entries, and `--problem-id-from-filename` only when the filename prefix is trusted as the problem id.
+
 ```powershell
 $skillRoot = "C:\path\to\cp-publish-skill"
 $repo = "C:\path\to\resolved\repo"
@@ -180,6 +184,18 @@ rm "$plan_dir/cp-plan.json"
 
 `apply_plan.py` verifies the source file, creates target parents, copies or moves the solution, calls `scripts/cp_publish/update_readme.py`, and prints `changed_paths` plus `commit_paths`. Use `--with-results` to fetch contest results from the plan and update the README `## Results` table when possible. Use `--require-results` only when a result fetch failure should fail the apply. For multiple Codeforces targets, copy the same source to every target; do not move to only one target.
 
+Batch example:
+
+```powershell
+python "$skillRoot\scripts\cp_publish\batch_publish.py" --from-dir C:\path\to\contest --move --dry-run --tags-from-readme
+python "$skillRoot\scripts\cp_publish\batch_publish.py" --from-dir C:\path\to\contest --move --tags-from-readme
+```
+
+```sh
+python3 "$skill_root/scripts/cp_publish/batch_publish.py" --from-dir /path/to/contest --move --dry-run --tags-from-readme
+python3 "$skill_root/scripts/cp_publish/batch_publish.py" --from-dir /path/to/contest --move --tags-from-readme
+```
+
 ## Metadata And README Rules
 
 Load `references/path-rules.md` when checking placement or target paths. Load `references/readme-format.md` and `references/solution-tags.md` before README-specific edits or tag inference.
@@ -198,7 +214,7 @@ Use only README tags that appear as values in `references/solvedac-tag-map.json`
 4. Identify the candidate solution file.
 5. Build and inspect a plan.
 6. Resolve any `needs_confirmation`, warnings, or conflicts with the user.
-7. Run `apply_plan.py --copy --dry-run`, inspect the JSON, then run without `--dry-run`.
+7. For one file, run `apply_plan.py --copy --dry-run`, inspect the JSON, then run without `--dry-run`; for multiple files, use `batch_publish.py --dry-run`, then rerun without `--dry-run`.
 8. Use returned `commit_paths` as the explicit commit target list.
 9. Do not compile or run solution code unless the user explicitly asked for solution verification.
 10. Commit with the planned commit message or a concise equivalent.
