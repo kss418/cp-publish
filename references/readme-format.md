@@ -53,7 +53,8 @@ Rules:
 - For AtCoder, use the estimated difficulty from Kenkoooo AtCoder Problems `problem-models.json` when available.
 - If rating is unknown, absent, or unavailable, write `$-$`.
 - Tags must follow `references/solution-tags.md` and must appear as values in `references/solvedac-tag-map.json`.
-- Put one blank line after the header and one blank line between problem entries when there is no result table.
+- Put `## Solutions` before solution entries, even when there is no result table.
+- Put one blank line between problem entries.
 
 ## Result Table
 
@@ -62,21 +63,22 @@ If the configured user participated in the contest and contest result data is av
 ```markdown
 ## Results
 
-| Problem | Wrong | AC Time |
-| --- | ---: | --- |
-| A | 0 | 00:07:00 |
-| B | 2 | - |
+| Problem | A | B |
+| --- | ---: | ---: |
+| Wrong | 0 | 2 |
+| AC Time | 00:07:00 | - |
 
 ## Solutions
 ```
 
 Rules:
 
+- `Problem`: one column per problem ID.
 - `Wrong`: number of wrong attempts before AC. Use `0` when there were no wrong attempts.
 - `AC Time`: contest-relative accepted time as `HH:MM:SS`.
 - Use `-` when the problem was not accepted.
 - Preserve and update existing result rows by `problem_id`.
-- If the user did not participate or result APIs are unavailable, omit the result table and keep the normal entry list.
+- If the user did not participate or result APIs are unavailable, omit the result table but keep `## Solutions` before the entries.
 
 ## Codeforces Example
 
@@ -85,11 +87,10 @@ Rules:
 
 ## Results
 
-| Problem | Wrong | AC Time |
-| --- | ---: | --- |
-| A | 0 | 00:05:12 |
-| B | 1 | 00:18:44 |
-| C | 3 | - |
+| Problem | A | B | C |
+| --- | ---: | ---: | ---: |
+| Wrong | 0 | 1 | 3 |
+| AC Time | 00:05:12 | 00:18:44 | - |
 
 ## Solutions
 
@@ -111,11 +112,10 @@ E / Rating : $2000$ / Bruteforce, Sorting, Greedy, Bit_Mask
 
 ## Results
 
-| Problem | Wrong | AC Time |
-| --- | ---: | --- |
-| A | 0 | 00:01:38 |
-| B | 1 | 00:13:20 |
-| C | 0 | - |
+| Problem | A | B | C |
+| --- | ---: | ---: | ---: |
+| Wrong | 0 | 1 | 0 |
+| AC Time | 00:01:38 | 00:13:20 | - |
 
 ## Solutions
 

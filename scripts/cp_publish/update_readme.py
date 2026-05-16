@@ -197,11 +197,9 @@ def parse_entry(line: str) -> Entry | None:
 
 
 def parse_result_row(line: str) -> ResultRow | None:
-    stripped = line.strip()
-    if not stripped.startswith("|") or not stripped.endswith("|"):
+    cells = parse_table_cells(line)
+    if cells is None:
         return None
-
-    cells = [cell.strip() for cell in stripped.strip("|").split("|")]
     if len(cells) != 3:
         return None
 
@@ -218,14 +216,82 @@ def parse_result_row(line: str) -> ResultRow | None:
     )
 
 
-def is_known_result_table_markup(line: str) -> bool:
+def parse_table_cells(line: str) -> list[str] | None:
     stripped = line.strip()
     if not stripped.startswith("|") or not stripped.endswith("|"):
-        return False
-    cells = [cell.strip().lower() for cell in stripped.strip("|").split("|")]
-    if cells in (["problem", "wrong", "ac time"], ["problem", "wrong attempts", "accepted at"]):
-        return True
+        return None
+    return [cell.strip() for cell in stripped.strip("|").split("|")]
+
+
+def is_separator_cells(cells: list[str]) -> bool:
     return all(cell and set(cell) <= {"-", ":", " "} for cell in cells)
+
+
+def parse_transposed_result_table(rows: list[list[str]]) -> list[ResultRow] | None:
+    if not rows:
+        return None
+
+    header = rows[0]
+    if len(header) < 2 or header[0].strip().lower() != "problem":
+        return None
+
+    problem_ids = header[1:]
+    wrong_row: list[str] | None = None
+    time_row: list[str] | None = None
+    for row in rows[1:]:
+        if is_separator_cells(row) or not row:
+            continue
+        label = row[0].strip().lower()
+        values = row[1:]
+        if label in {"wrong", "wrong attempts"}:
+            wrong_row = values
+        elif label in {"ac time", "accepted at"}:
+            time_row = values
+        else:
+            return None
+
+    if wrong_row is None or time_row is None:
+        return None
+    if len(wrong_row) != len(problem_ids) or len(time_row) != len(problem_ids):
+        return None
+
+    return [
+        ResultRow(
+            problem_id=normalize_problem_id(problem_id),
+            wrong_attempts=normalize_wrong_attempts(wrong),
+            accepted_at_seconds=normalize_accepted_seconds(accepted),
+        )
+        for problem_id, wrong, accepted in zip(problem_ids, wrong_row, time_row)
+    ]
+
+
+def parse_vertical_result_table(rows: list[list[str]]) -> list[ResultRow] | None:
+    parsed: list[ResultRow] = []
+    saw_header = False
+    for cells in rows:
+        lowered = [cell.lower() for cell in cells]
+        if lowered in (["problem", "wrong", "ac time"], ["problem", "wrong attempts", "accepted at"]):
+            saw_header = True
+            continue
+        if is_separator_cells(cells):
+            continue
+        if len(cells) != 3:
+            return None
+        parsed.append(
+            ResultRow(
+                problem_id=normalize_problem_id(cells[0]),
+                wrong_attempts=normalize_wrong_attempts(cells[1]),
+                accepted_at_seconds=normalize_accepted_seconds(cells[2]),
+            )
+        )
+    return parsed if saw_header else None
+
+
+def parse_result_table(lines: list[str]) -> list[ResultRow] | None:
+    rows = [cells for line in lines if (cells := parse_table_cells(line)) is not None]
+    if not rows:
+        return None
+    return parse_transposed_result_table(rows) or parse_vertical_result_table(rows)
 
 
 def problem_sort_key(problem_id: str) -> tuple[int, int, str]:
@@ -258,6 +324,7 @@ def read_existing(readme_path: Path) -> tuple[str | None, list[Entry], list[Resu
     header = lines[0].strip()
     entries: list[Entry] = []
     result_rows: list[ResultRow] = []
+    result_table_lines: list[str] = []
     unknown_lines: list[str] = []
 
     for line in lines[1:]:
@@ -267,11 +334,7 @@ def read_existing(readme_path: Path) -> tuple[str | None, list[Entry], list[Resu
         if stripped in {RESULTS_HEADING, SOLUTIONS_HEADING}:
             continue
         if stripped.startswith("|"):
-            result_row = parse_result_row(stripped)
-            if result_row is not None:
-                result_rows.append(result_row)
-            elif not is_known_result_table_markup(stripped):
-                unknown_lines.append(stripped)
+            result_table_lines.append(stripped)
             continue
 
         entry = parse_entry(stripped)
@@ -280,7 +343,27 @@ def read_existing(readme_path: Path) -> tuple[str | None, list[Entry], list[Resu
         else:
             entries.append(entry)
 
+    if result_table_lines:
+        parsed_results = parse_result_table(result_table_lines)
+        if parsed_results is None:
+            unknown_lines.extend(result_table_lines)
+        else:
+            result_rows.extend(parsed_results)
+
     return header, entries, result_rows, unknown_lines
+
+
+def render_result_table(rows: list[ResultRow]) -> list[str]:
+    problem_ids = [row.problem_id for row in rows]
+    wrong_attempts = [str(row.wrong_attempts) for row in rows]
+    accepted_times = [format_accepted_time(row.accepted_at_seconds) for row in rows]
+    value_separator = " | ".join("---:" for _ in rows)
+    return [
+        "| Problem | " + " | ".join(problem_ids) + " |",
+        "| --- | " + value_separator + " |",
+        "| Wrong | " + " | ".join(wrong_attempts) + " |",
+        "| AC Time | " + " | ".join(accepted_times) + " |",
+    ]
 
 
 def render_readme(header: str, entries: list[Entry], result_rows: list[ResultRow]) -> str:
@@ -294,13 +377,13 @@ def render_readme(header: str, entries: list[Entry], result_rows: list[ResultRow
             [
                 RESULTS_HEADING,
                 "",
-                "| Problem | Wrong | AC Time |",
-                "| --- | ---: | --- |",
             ]
         )
-        lines.extend(row.line() for row in sorted_results)
+        lines.extend(render_result_table(sorted_results))
         if sorted_entries:
             lines.extend(["", SOLUTIONS_HEADING, ""])
+    elif sorted_entries:
+        lines.extend([SOLUTIONS_HEADING, ""])
 
     for index, entry in enumerate(sorted_entries):
         if index:

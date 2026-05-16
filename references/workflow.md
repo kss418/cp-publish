@@ -213,7 +213,9 @@ python3 scripts/api/atcoder_results.py contest --contest-id abc422 --user <atcod
 python3 scripts/api/atcoder_results.py contest --contest-id abc422 --user <atcoder_id> --source kenkoooo-submissions
 ```
 
-When result JSON is available, pass it to `scripts/cp_publish/update_readme.py --results-json`. If the user was not found in standings or has no contest submissions, skip the result table and continue with the solution entry only.
+For Codeforces, `codeforces_results.py contest` uses the user's bulk `user.status` response by default and caches it for 1 hour. This lets multi-contest README updates reuse one user submission fetch instead of calling a contest endpoint for every contest. Use `--standings` only when official standings data is required, and use `--fallback-standings` only when the bulk status path is insufficient.
+
+When result JSON is available, pass it to `scripts/cp_publish/update_readme.py --results-json`. If the user has no contest-time submissions, skip the result table and continue with the solution entry only.
 
 ## Plan And Apply
 

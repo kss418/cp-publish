@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -22,6 +23,7 @@ from cp_publish.paths import extract_codeforces_round_number
 
 NON_PENALTY_VERDICTS = {"COMPILATION_ERROR", "SKIPPED", "TESTING"}
 NON_CONTEST_PARTICIPANT_TYPES = {"PRACTICE", "VIRTUAL"}
+USER_STATUS_MAX_AGE_SECONDS = 60 * 60
 
 
 class CodeforcesResultsError(RuntimeError):
@@ -53,9 +55,30 @@ def load_method(method: str, params: dict[str, Any], args: argparse.Namespace) -
     return codeforces_metadata.load_method(method, params, **common_fetch_kwargs(args))
 
 
+def load_user_status(args: argparse.Namespace) -> dict[str, Any]:
+    return codeforces_metadata.load_method(
+        "user.status",
+        {"handle": args.user},
+        cache_dir=args.cache_dir.expanduser().resolve(),
+        max_age_seconds=args.user_status_max_age,
+        refresh=args.refresh,
+        no_cache=args.no_cache,
+        timeout=args.timeout,
+    )
+
+
 def problem_id(problem: dict[str, Any]) -> str:
     value = problem.get("index")
     return str(value).upper() if value is not None else ""
+
+
+def problem_sort_key(problem: dict[str, Any]) -> tuple[str, int, str]:
+    index = problem_id(problem)
+    match = re.fullmatch(r"([A-Z]+)(\d*)", index)
+    if not match:
+        return index, -1, index
+    suffix = int(match.group(2)) if match.group(2) else -1
+    return match.group(1), suffix, index
 
 
 def find_user_row(rows: list[dict[str, Any]], handle: str) -> dict[str, Any] | None:
@@ -154,6 +177,7 @@ def normalized_from_submissions(
     submissions: list[dict[str, Any]],
     source: dict[str, Any],
 ) -> dict[str, Any]:
+    wanted_contest_id = str(contest.get("id"))
     start_time = int_or_none(contest.get("startTimeSeconds")) or 0
     duration = int_or_none(contest.get("durationSeconds"))
     by_problem: dict[str, list[dict[str, Any]]] = {}
@@ -165,6 +189,9 @@ def normalized_from_submissions(
 
         problem = submission.get("problem")
         if not isinstance(problem, dict):
+            continue
+        submission_contest_id = submission.get("contestId") or problem.get("contestId")
+        if str(submission_contest_id) != wanted_contest_id:
             continue
 
         relative_time = int_or_none(submission.get("relativeTimeSeconds"))
@@ -230,7 +257,65 @@ def normalized_from_submissions(
     }
 
 
-def get_contest_result(args: argparse.Namespace) -> dict[str, Any]:
+def load_contest_and_problems(args: argparse.Namespace) -> tuple[dict[str, Any], list[dict[str, Any]], dict[str, Any]]:
+    contest_id = str(args.contest_id)
+    contests_data = load_method("contest.list", {}, args)
+    contests = contests_data.get("result")
+    if not isinstance(contests, list):
+        raise CodeforcesResultsError("contest.list returned an unexpected payload.")
+
+    contest = next(
+        (item for item in contests if isinstance(item, dict) and str(item.get("id")) == contest_id),
+        None,
+    )
+    if contest is None:
+        raise CodeforcesResultsError(f"Contest {contest_id} was not found in contest.list.")
+
+    problems_data = load_method("problemset.problems", {}, args)
+    problemset = problems_data.get("result")
+    problems_payload = problemset.get("problems") if isinstance(problemset, dict) else None
+    if not isinstance(problems_payload, list):
+        raise CodeforcesResultsError("problemset.problems returned an unexpected payload.")
+
+    problems = [
+        problem
+        for problem in problems_payload
+        if isinstance(problem, dict) and str(problem.get("contestId")) == contest_id
+    ]
+    if not problems:
+        raise CodeforcesResultsError(f"No problems found for contest {contest_id}.")
+
+    source = {
+        "contest.list": contests_data.get("source"),
+        "problemset.problems": problems_data.get("source"),
+    }
+    return contest, sorted(problems, key=problem_sort_key), source
+
+
+def get_contest_result_from_user_status(args: argparse.Namespace) -> dict[str, Any]:
+    contest, problems, metadata_source = load_contest_and_problems(args)
+    submissions_data = load_user_status(args)
+    submissions = submissions_data.get("result")
+    if not isinstance(submissions, list):
+        raise CodeforcesResultsError("user.status returned an unexpected payload.")
+    if not submissions:
+        raise CodeforcesResultsError(f"No submissions found for {args.user!r}.")
+
+    return normalized_from_submissions(
+        handle=args.user,
+        contest=contest,
+        problems=problems,
+        submissions=submissions,
+        source={
+            "standings": None,
+            "submissions": "user.status",
+            "metadata": metadata_source,
+            "user_status": submissions_data.get("source"),
+        },
+    )
+
+
+def get_contest_result_from_standings(args: argparse.Namespace) -> dict[str, Any]:
     standings_data = load_method(
         "contest.standings",
         {"contestId": args.contest_id},
@@ -281,6 +366,17 @@ def get_contest_result(args: argparse.Namespace) -> dict[str, Any]:
     )
 
 
+def get_contest_result(args: argparse.Namespace) -> dict[str, Any]:
+    if args.standings:
+        return get_contest_result_from_standings(args)
+    try:
+        return get_contest_result_from_user_status(args)
+    except CodeforcesResultsError:
+        if not args.fallback_standings:
+            raise
+        return get_contest_result_from_standings(args)
+
+
 def fetch_contest_result(args: argparse.Namespace) -> int:
     output_json(get_contest_result(args), args.output)
     return 0
@@ -297,7 +393,13 @@ def add_common_fetch_args(parser: argparse.ArgumentParser) -> None:
         "--max-age",
         type=int,
         default=codeforces_metadata.DEFAULT_MAX_AGE_SECONDS,
-        help="Cache max age in seconds. Use 0 with --refresh for a fresh fetch.",
+        help="Metadata and fallback endpoint cache max age in seconds.",
+    )
+    parser.add_argument(
+        "--user-status-max-age",
+        type=int,
+        default=USER_STATUS_MAX_AGE_SECONDS,
+        help="Cache max age in seconds for the bulk user.status response.",
     )
     parser.add_argument("--refresh", action="store_true", help="Ignore cache and fetch from Codeforces.")
     parser.add_argument("--no-cache", action="store_true", help="Do not read or write cache.")
@@ -321,10 +423,20 @@ def build_parser() -> argparse.ArgumentParser:
     contest.add_argument("--contest-id", required=True, help="Codeforces contest ID from the URL.")
     contest.add_argument("--user", required=True, help="Codeforces handle.")
     contest.add_argument(
+        "--standings",
+        action="store_true",
+        help="Use contest.standings first instead of the default bulk user.status path.",
+    )
+    contest.add_argument(
+        "--fallback-standings",
+        action="store_true",
+        help="Fallback to contest.standings/contest.status if user.status has no contest-time submissions.",
+    )
+    contest.add_argument(
         "--no-fallback-submissions",
         dest="fallback_submissions",
         action="store_false",
-        help="Do not call contest.status if the user is missing from standings.",
+        help="With --standings or --fallback-standings, do not call contest.status if the user is missing from standings.",
     )
     contest.set_defaults(fallback_submissions=True)
 

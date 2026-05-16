@@ -277,7 +277,7 @@ python3 "$skill_root/scripts/cp_publish/apply_plan.py" --plan "$plan_dir/cp-plan
 rm "$plan_dir/cp-plan.json"
 ```
 
-`apply_plan.py`는 source file 존재 여부, target parent 생성, copy/move, README 갱신, 변경 path 목록, commit 대상 path 목록을 JSON으로 출력합니다. 기본적으로 plan의 `contest_result_command`를 실행해서 가능한 경우 `## Results` 표도 함께 갱신합니다. 결과 조회를 생략하려면 `--no-results`를 사용합니다. 결과 조회 실패는 warning으로 남기고 풀이 항목은 계속 갱신합니다. 결과 조회 실패 시 전체 apply를 실패시키려면 `--require-results`를 사용합니다.
+`apply_plan.py`는 source file 존재 여부, target parent 생성, copy/move, README 갱신, 변경 path 목록, commit 대상 path 목록을 JSON으로 출력합니다. 기본적으로 plan의 `contest_result_command`를 실행해서 가능한 경우 `## Results` 표도 함께 갱신합니다. Codeforces 결과 조회는 기본적으로 `user.status` 전체 제출을 한 번 가져와 1시간 캐시하고, contest별 결과는 로컬에서 계산합니다. 결과 조회를 생략하려면 `--no-results`를 사용합니다. 결과 조회 실패는 warning으로 남기고 풀이 항목은 계속 갱신합니다. 결과 조회 실패 시 전체 apply를 실패시키려면 `--require-results`를 사용합니다.
 
 `needs_confirmation`이 `true`이면 실제 변경 전에 사용자의 확인이 필요합니다.
 
@@ -290,10 +290,10 @@ rm "$plan_dir/cp-plan.json"
 
 ## Results
 
-| Problem | Wrong | AC Time |
-| --- | ---: | --- |
-| A | 0 | 00:05:12 |
-| B | 1 | 00:18:44 |
+| Problem | A | B |
+| --- | ---: | ---: |
+| Wrong | 0 | 1 |
+| AC Time | 00:05:12 | 00:18:44 |
 
 ## Solutions
 
@@ -304,7 +304,7 @@ B / Rating : $1100$ / Math, Greedy
 
 AtCoder도 같은 형식을 사용합니다. AtCoder rating은 Kenkoooo의 추정 난이도를 사용하고, 없거나 모르면 `$-$`로 씁니다.
 
-사용자 ID가 config에 저장되어 있고 해당 사용자가 contest를 친 기록을 가져올 수 있으면 `## Results` 표를 같이 씁니다. 참가 기록이 없거나 API 조회가 실패하면 표는 생략하고 풀이 항목만 갱신합니다.
+사용자 ID가 config에 저장되어 있고 해당 사용자가 contest를 친 기록을 가져올 수 있으면 `## Results` 표를 같이 씁니다. 참가 기록이 없거나 API 조회가 실패하면 `## Results` 표는 생략하되 `## Solutions` 아래에 풀이 항목을 씁니다.
 
 README 항목만 직접 갱신하려면 다음 명령을 사용할 수 있습니다.
 
@@ -358,7 +358,7 @@ python scripts/api/codeforces_results.py contest --contest-id 2061 --user <codef
 python3 scripts/api/codeforces_results.py contest --contest-id 2061 --user <codeforces_handle>
 ```
 
-Codeforces는 `contest.standings`를 먼저 쓰고, standings에 사용자가 없으면 `contest.status`로 해당 handle의 제출을 가져와 계산합니다.
+Codeforces는 기본적으로 `user.status` 전체 제출을 한 번 가져와 1시간 캐시하고, contest별 문제 결과는 로컬에서 계산합니다. 공식 standings 기준 자료가 꼭 필요할 때만 `--standings`를 사용합니다.
 
 AtCoder:
 
@@ -395,8 +395,8 @@ AtCoder는 기본적으로 AtCoder standings JSON을 사용합니다. `--source 
     }
   ],
   "source": {
-    "standings": "contest.standings",
-    "submissions": null
+    "standings": null,
+    "submissions": "user.status"
   },
   "fetched_at_unix": 0
 }
