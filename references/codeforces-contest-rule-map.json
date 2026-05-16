@@ -1,0 +1,178 @@
+{
+  "source": "https://codeforces.com/api/contest.list?gym=false",
+  "style": "Map Codeforces contest title tokens to cp-publish contest kind, Others group names, and round-number extraction rules.",
+  "kind_patterns": {
+    "Educational": [
+      "\\beducational\\s+codeforces\\s+round\\b"
+    ],
+    "Global": [
+      "\\bcodeforces\\s+global\\s+round\\b"
+    ],
+    "regular": [
+      "\\bcodeforces\\s+(?:beta\\s+)?round\\b",
+      "\\bcodeforces\\s+alpha\\s+round\\b"
+    ]
+  },
+  "round_number_patterns": {
+    "Educational": [
+      "\\beducational\\s+codeforces\\s+round\\s+#?(\\d+)\\b"
+    ],
+    "Global": [
+      "\\bcodeforces\\s+global\\s+round\\s+#?(\\d+)\\b"
+    ],
+    "regular": [
+      "\\bcodeforces\\s+(?:beta\\s+)?round\\s+#?(\\d+)\\b",
+      "\\bcodeforces\\s+alpha\\s+round\\s+#?(\\d+)\\b"
+    ],
+    "Others": {
+      "Kotlin_Heroes": [
+        "\\bkotlin\\s+heroes\\s+(\\d+)\\s*:",
+        "\\bkotlin\\s+heroes:\\s*(?:episode|practice)\\s+(\\d+)\\b"
+      ],
+      "April_Fools": [
+        "\\bapril\\s+fools(?:\\s+day)?\\s+contest\\s+#?(\\d{1,3})\\b"
+      ],
+      "Testing_Round": [
+        "\\b(?:codeforces\\s+)?testing\\s+round\\s+#?(\\d+)\\b"
+      ],
+      "School_Team_Contest": [
+        "\\bschool\\s+team\\s+contest\\s+#?(\\d+)\\b"
+      ],
+      "Manthan_Codefest_16": [
+        "\\bmanthan\\b.*\\bcodefest\\s+(\\d+)\\b"
+      ],
+      "Manthan_Codefest_17": [
+        "\\bmanthan\\b.*\\bcodefest\\s+(\\d+)\\b"
+      ],
+      "Manthan_Codefest_18": [
+        "\\bmanthan\\b.*\\bcodefest\\s+(\\d+)\\b"
+      ],
+      "Manthan_Codefest_19": [
+        "\\bmanthan\\b.*\\bcodefest\\s+(\\d+)\\b"
+      ],
+      "*": [
+        "\\bround\\s+#?(\\d+)\\b"
+      ],
+      "_year_suffix": [
+        "\\b(?:hello|good\\s+bye|goodbye)\\s+((?:19|20)\\d{2})\\b",
+        "\\bapril\\s+fools(?:\\s+day)?\\s+contest\\s+((?:19|20)\\d{2})\\b",
+        "\\b((?:19|20)\\d{2})\\b"
+      ]
+    }
+  },
+  "others_group_aliases": {
+    "8vc_venture_cup": "8VC_Venture_Cup",
+    "abbyy_cup": "ABBYY_Cup",
+    "abbyy": "ABBYY_Cup",
+    "aim_tech_mini_marathon": "AIM_Tech_Mini_Marathon",
+    "aim_tech_poorly_prepared_contest": "AIM_Tech_Poorly_Prepared_Contest",
+    "aim_tech_round": "AIM_Tech_Round",
+    "all_ukrainian_school_olympiad": "All_Ukrainian_School_Olympiad",
+    "april_fools_day_contest": "April_Fools",
+    "april_fools_contest": "April_Fools",
+    "avito_code_challenge": "Avito_Code_Challenge",
+    "avito_cool_challenge": "Avito_Cool_Challenge",
+    "bayan_2015_contest": "Bayan_2015_Contest",
+    "bubble_cup": "Bubble_Cup",
+    "canada_cup": "Canada_Cup",
+    "codecraft": "CodeCraft",
+    "codeforces_latoken_round": "Codeforces_LATOKEN_Round",
+    "codeforces_marathon_round": "Codeforces_Marathon",
+    "codeforces_raif_ml_round": "Codeforces_Raif_ML_Round",
+    "codeforces_raif_round": "Codeforces_Raif_Round",
+    "codeton_round": "CodeTON_Round",
+    "coder_strike_2014_qualification_round": "Coder_Strike_2014_Qualification_Round",
+    "coder_strike_2014_round": "Coder_Strike_2014_Round",
+    "coder_strike_2014_finals": "Coder_Strike_2014_Finals",
+    "croc_2016_elimination_round": "CROC_2016_Elimination_Round",
+    "croc_2016_final_round": "CROC_2016_Final_Round",
+    "croc_2016_qualification": "CROC_2016",
+    "croc_champ_2012_qualification_round": "Croc_Champ_2012_Qualification_Round",
+    "croc_champ_2012_round": "Croc_Champ_2012_Round",
+    "croc_champ_2012_final": "Croc_Champ_2012",
+    "croc_champ_2013_qualification_round": "Croc_Champ_2013_Qualification_Round",
+    "croc_champ_2013_round": "Croc_Champ_2013_Round",
+    "croc_champ_2013_finals": "Croc_Champ_2013",
+    "croc_mbtu_2012_final_round": "CROC_MBTU_2012_Final_Round",
+    "dasha_code_championship": "Dasha_Code_Championship",
+    "deltix_round": "Deltix_Round",
+    "dytechlab_cup": "Dytechlab_Cup",
+    "ecnerwala_vs_errichto_kotlin_match": "Ecnerwala_vs_Errichto_Kotlin_Match",
+    "epic_institute_of_technology_round": "EPIC_Institute_of_Technology_Round",
+    "experimental_educational_round": "Experimental_Educational_Round",
+    "forethought_future_cup": "Forethought_Future_Cup",
+    "friday_the_13th_programmers_day": "Friday_the_13th_Programmers_Day",
+    "good_bye": "Good_Bye",
+    "goodbye": "Good_Bye",
+    "grakn_forces": "Grakn_Forces",
+    "harbour_space_scholarship_contest": "Harbour_Space_Scholarship_Contest",
+    "hello": "Hello",
+    "helvetic_coding_contest": "Helvetic_Coding_Contest",
+    "huawei_honorcup_marathon": "Huawei_Honorcup_Marathon",
+    "icpc": "ICPC",
+    "acm_icpc": "ICPC",
+    "ioi": "IOI",
+    "indiahacks_2016": "IndiaHacks_2016",
+    "intel_code_challenge": "Intel_Code_Challenge",
+    "kotlin_heroes": "Kotlin_Heroes",
+    "looksery_cup": "Looksery_Cup",
+    "lyft_level_5_challenge": "Lyft_Level_5_Challenge",
+    "mail_ru_cup": "Mail_Ru_Cup",
+    "manthan_codefest_16": "Manthan_Codefest_16",
+    "manthan_codefest_17": "Manthan_Codefest_17",
+    "manthan_codefest_18": "Manthan_Codefest_18",
+    "manthan_codefest_19": "Manthan_Codefest_19",
+    "manthan_2011": "Manthan_2011",
+    "maraton_challenge": "MaraTON_Challenge",
+    "mathforces": "Mathforces",
+    "memsql_start_c_up_2_0_round": "MemSQL_Start_c_UP_2_0_Round",
+    "memsql_start_c_up_3_0_round": "MemSQL_Start_c_UP_3_0_Round",
+    "memsql_start_c_up_round": "MemSQL_start_c_up_Round",
+    "microsoft_q_coding_contest": "Microsoft_Q_Coding_Contest",
+    "nebius_welcome_round": "Nebius_Welcome_Round",
+    "nerc_challenge": "NERC_Challenge",
+    "ozon_tech_challenge": "Ozon_Tech_Challenge",
+    "pinely_round": "Pinely_Round",
+    "pinely_treasure_hunt_contest": "Pinely_Treasure_Hunt_Contest",
+    "polynomial_round": "Polynomial_Round",
+    "rcc_2014_warmup": "RCC_2014_Warmup",
+    "rockethon_2014": "Rockethon_2014",
+    "rockethon_2015": "Rockethon_2015",
+    "russian_code_cup": "Russian_Code_Cup",
+    "school_regional_team_contest": "School_Regional_Team_Contest",
+    "school_team_contest": "School_Team_Contest",
+    "surprise_language_round": "Surprise_Language_Round",
+    "tact_smart_battle": "Tact_Smart_Battle_1",
+    "technocup": "Technocup",
+    "testing_round": "Testing_Round",
+    "codeforces_testing_round": "Testing_Round",
+    "think_cell_round": "think_cell_Round",
+    "tinkoff_challenge": "Tinkoff_Challenge",
+    "typedb_forces": "TypeDB_Forces",
+    "unknown_language_round": "Unknown_Language_Round",
+    "vk_cup": "VK_Cup",
+    "veeroute_marathon": "VeeRoute_Marathon",
+    "vrt_contest": "VRt_Contest",
+    "wunder_fund_round": "Wunder_Fund_Round",
+    "yandex_algorithm_open_2011": "Yandex_Algorithm_Open_2011",
+    "yandex_algorithm_2011_round": "Yandex_Algorithm_2011_Round",
+    "yandex_algorithm_2011": "Yandex_Algorithm_2011",
+    "zepto_code_rush_2014": "Zepto_Code_Rush_2014",
+    "zeptolab_code_rush_2015": "ZeptoLab_Code_Rush_2015"
+  },
+  "others_group_priority_aliases": [
+    "good_bye",
+    "goodbye",
+    "hello",
+    "april_fools_day_contest",
+    "april_fools_contest",
+    "kotlin_heroes",
+    "testing_round",
+    "codeforces_testing_round",
+    "vk_cup",
+    "technocup",
+    "acm_icpc",
+    "icpc",
+    "ioi"
+  ]
+}

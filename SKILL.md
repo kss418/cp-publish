@@ -19,6 +19,7 @@ For exact command examples, load `references/workflow.md`. For placement and REA
 - `references/readme-format.md`: contest README structure and rating/result table rules.
 - `references/solution-tags.md`: tag inference rules.
 - `references/solvedac-tag-map.json`: allowed README tag values and solved.ac key mapping.
+- `references/codeforces-contest-rule-map.json`: Codeforces contest kind, Others group, and round-number rule mapping.
 
 ## Hard Rules
 
@@ -211,6 +212,8 @@ rm "$batch_plan"
 Load `references/path-rules.md` when checking placement or target paths. Load `references/readme-format.md` and `references/solution-tags.md` before README-specific edits or tag inference.
 
 Use Codeforces metadata for Codeforces contest names, contest kinds, problem names, and ratings. Use AtCoder/Kenkoooo metadata for AtCoder problem titles and estimated difficulty. For `plan_publish.py`, use `--refresh-metadata` only when the user explicitly requests fresh metadata. For metadata and result helper scripts, use `--refresh`.
+
+For Codeforces contest path classification, follow `references/codeforces-contest-rule-map.json` as the canonical editable map. Prefer updating that map for named rounds, special contests, and Others group aliases instead of adding hard-coded contest-title branches.
 
 For Codeforces result updates, prefer the default `scripts/api/codeforces_results.py contest` path. It fetches the user's bulk `user.status` once, caches that response for 1 hour, and computes per-contest wrong attempts and AC times locally. Do not use `--standings` or `--fallback-standings` unless official standings data is specifically needed or the bulk status path is insufficient.
 

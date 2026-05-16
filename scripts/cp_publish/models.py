@@ -28,6 +28,9 @@ EXTENSION_ALIASES = {
 }
 ATCODER_NUMERIC_SERIES = {"abc", "arc", "agc", "ahc"}
 TAG_MAP_PATH = Path(__file__).resolve().parents[2] / "references" / "solvedac-tag-map.json"
+CODEFORCES_CONTEST_RULE_MAP_PATH = (
+    Path(__file__).resolve().parents[2] / "references" / "codeforces-contest-rule-map.json"
+)
 
 
 class PlanError(Exception):

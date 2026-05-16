@@ -126,9 +126,12 @@ Normalize:
 
 Classify by the Codeforces contest `name` from `contest.list`; do not classify by the API `type` alone. Many official Div. 3, Div. 4, and Educational rounds have API `type` values such as `ICPC`.
 
+Use `references/codeforces-contest-rule-map.json` as the canonical editable map for contest-kind tokens, `Others` group aliases, and round-number extraction patterns. When a named contest series needs a new rule, update the map before changing Python code.
+
 Classify as regular numeric contests when the contest name contains an official `Codeforces Round` token, including:
 
 - `Codeforces Round 1098 (Div. 2)`.
+- `Codeforces Alpha Round 20 (Codeforces format)`.
 - `Codeforces Round 1097 (Div. 1, Based on Zhili Cup 2026)`.
 - `Spectral::Cup 2026 Round 1 (Codeforces Round 1094, Div. 1 + Div. 2)`.
 - `CodeCraft-22 and Codeforces Round 795 (Div. 2)`.

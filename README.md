@@ -39,7 +39,7 @@ ABC/400/420/422/A_Stage_Clear.cpp
 
 Codeforces는 라운드 이름과 별개로 모든 contest에 URL/API 숫자 ID가 있습니다. README 링크와 API 조회에는 `https://codeforces.com/contest/2222`의 `2222` 같은 contest ID를 쓰지만, 저장 경로에는 `Codeforces Round 1094`의 `1094` 같은 라운드 번호를 씁니다.
 
-일반 라운드는 라운드 번호 기준으로 저장합니다. 라운드 이름에 공식 `Codeforces Round` 토큰이 있으면 앞에 sponsor나 event 이름이 붙어 있어도 일반 라운드로 봅니다.
+일반 라운드는 라운드 번호 기준으로 저장합니다. 라운드 이름에 공식 `Codeforces Round` 토큰이 있거나 `references/codeforces-contest-rule-map.json`에서 일반 라운드로 매핑된 토큰이 있으면 앞에 sponsor나 event 이름이 붙어 있어도 일반 라운드로 봅니다.
 
 ```text
 1000/1090/1094/A_Example_Title.cpp
@@ -75,7 +75,7 @@ contest 그룹이나 라운드 번호를 안정적으로 뽑을 수 없으면 Co
 
 Java도 `.java` 확장자로 지원하지만 저장 시 `A_Title.java`처럼 문제 제목 기반 파일명으로 바뀝니다. `public class Main`을 쓰는 Java 풀이는 rename 후 컴파일이 깨질 수 있으므로 non-public `class Main`을 쓰거나 Java 풀이는 수동 publish하세요.
 
-자세한 규칙은 `references/path-rules.md`를 봅니다.
+자세한 규칙은 `references/path-rules.md`를 봅니다. Codeforces contest 종류, `Others` 그룹 alias, 라운드 번호 추출 규칙은 `references/codeforces-contest-rule-map.json`에서 관리합니다.
 
 ## 설치 방법
 
@@ -443,4 +443,5 @@ references/readme-format.md      # README 양식
 references/solution-tags.md      # 풀이 태그 규칙
 references/workflow.md           # 상세 명령 예시와 workflow reference
 references/solvedac-tag-map.json # solved.ac 태그 매핑
+references/codeforces-contest-rule-map.json # Codeforces contest 분류 매핑
 ```
