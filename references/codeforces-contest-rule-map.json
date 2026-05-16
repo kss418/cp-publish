@@ -38,6 +38,9 @@
       "School_Team_Contest": [
         "\\bschool\\s+team\\s+contest\\s+#?(\\d+)\\b"
       ],
+      "ICPC_World_Finals_Challenge": [
+        "\\b(\\d+)(?:st|nd|rd|th)\\s+icpc\\s+world\\s+finals\\s+challenge\\b"
+      ],
       "Manthan_Codefest_16": [
         "\\bmanthan\\b.*\\bcodefest\\s+(\\d+)\\b"
       ],
@@ -109,8 +112,34 @@
     "hello": "Hello",
     "helvetic_coding_contest": "Helvetic_Coding_Contest",
     "huawei_honorcup_marathon": "Huawei_Honorcup_Marathon",
-    "icpc": "ICPC",
-    "acm_icpc": "ICPC",
+    "compfest": "COMPFEST",
+    "icpc_challenge": "ICPC_Challenge",
+    "icpc_online_challenge": "ICPC_Online_Challenge",
+    "online_challenge": "ICPC_Online_Challenge",
+    "online_spring_challenge": "ICPC_Online_Challenge",
+    "online_winter_challenge": "ICPC_Online_Challenge",
+    "icpc_communication_routing_challenge": "ICPC_Communication_Routing_Challenge",
+    "communication_routing_challenge": "ICPC_Communication_Routing_Challenge",
+    "icpc_wf_moscow_invitational_contest": "ICPC_WF_Moscow_Invitational_Contest",
+    "wf_moscow_invitational_contest": "ICPC_WF_Moscow_Invitational_Contest",
+    "icpc_world_finals_challenge": "ICPC_World_Finals_Challenge",
+    "world_finals_challenge": "ICPC_World_Finals_Challenge",
+    "icpc_world_finals": "ICPC_World_Finals",
+    "world_finals": "ICPC_World_Finals",
+    "nerc_southern_and_volga_russian_regional_contest": "ICPC_NERC_Southern_and_Volga_Russian_Regional_Contest",
+    "southern_and_volga_russian_regional_contest": "ICPC_NERC_Southern_and_Volga_Russian_Regional_Contest",
+    "nerc_southern_subregional_contest": "ICPC_NERC_Southern_Subregional_Contest",
+    "neerc_southern_subregional_contest": "ICPC_NERC_Southern_Subregional_Contest",
+    "southern_subregional_contest": "ICPC_NERC_Southern_Subregional_Contest",
+    "nerc_northern_eurasia_finals": "ICPC_NERC_Northern_Eurasia_Finals",
+    "northern_eurasia_finals": "ICPC_NERC_Northern_Eurasia_Finals",
+    "nerc_northern_eurasia_onsite": "ICPC_NERC_Northern_Eurasia_Onsite",
+    "northern_eurasia_onsite": "ICPC_NERC_Northern_Eurasia_Onsite",
+    "asia_jakarta_regional_contest": "ICPC_Asia_Jakarta_Regional_Contest",
+    "asia_taichung_regional_contest": "ICPC_Asia_Taichung_Regional_Contest",
+    "asia_pacific_championship": "ICPC_Asia_Pacific_Championship",
+    "european_championship": "ICPC_European_Championship",
+    "swerc": "ICPC_SWERC",
     "ioi": "IOI",
     "indiahacks_2016": "IndiaHacks_2016",
     "intel_code_challenge": "Intel_Code_Challenge",
@@ -171,8 +200,6 @@
     "codeforces_testing_round",
     "vk_cup",
     "technocup",
-    "acm_icpc",
-    "icpc",
     "ioi"
   ]
 }

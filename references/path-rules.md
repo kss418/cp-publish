@@ -149,7 +149,8 @@ Classify these as `Others` and use these preferred group names when applicable:
 - April Fools contests: `April_Fools`. Use the numeric contest/round identifier when present; if the title only gives a year, use the last two digits of that year.
 - Kotlin Heroes: `Kotlin_Heroes`. Use the episode/practice number.
 - Testing Round: `Testing_Round`. Use the testing round number.
-- ICPC, IOI, regional, online mirror, and team-preferred contests: prefer `ICPC` or `IOI` when those tokens are present.
+- ICPC regional, championship, and challenge mirrors: prefer an `ICPC_<region_or_series>` group from `references/codeforces-contest-rule-map.json`, for example `ICPC_NERC_Northern_Eurasia_Finals`, `ICPC_Asia_Jakarta_Regional_Contest`, or `ICPC_SWERC`. Use the first year of a season as the round number, shortened to two digits, for example `2024-2025 -> 24`. Do not classify a contest as ICPC just because the title says `ICPC Rules`.
+- IOI mirrors: prefer `IOI` when that token is present.
 - Company, product, sponsor, or event named contests that do not contain the official `Codeforces Round` token, such as `CodeTON Round`, `Pinely Round`, `Deltix Round`, and `Harbour.Space Scholarship Contest`. Normalize the series name and use the series round number when present.
 
 If no `contest_group` or numeric round identifier can be determined from the contest name, ask the user for `contest_group` and/or `round_number` before publishing. Do not silently fall back to the Codeforces contest ID for folder placement.

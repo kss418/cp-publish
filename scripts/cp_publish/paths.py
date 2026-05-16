@@ -268,6 +268,10 @@ def extract_codeforces_round_number(title: str | None, contest_kind: str | None)
             )
             if group_number:
                 return group_number
+        if group and (group == "ICPC" or group.startswith("ICPC_")):
+            year_number = first_codeforces_pattern_number(title, year_suffix_patterns, year_suffix=True)
+            if year_number:
+                return year_number
         direct_number = first_codeforces_pattern_number(title, codeforces_patterns(mapped_patterns.get("*")))
         if direct_number:
             return direct_number
