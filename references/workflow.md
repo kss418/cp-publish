@@ -325,6 +325,7 @@ Use the bundled GitHub helper for safe status, auth, commit, and push operations
 Set-Location $repo
 python "$skillRoot\scripts\init\github_integration.py" status
 python "$skillRoot\scripts\init\github_integration.py" commit -m "Add AtCoder ABC350 A solution" path/to/file.cpp
+python "$skillRoot\scripts\init\github_integration.py" commit -m "Publish Codeforces solutions" --paths-from-json .cp-publish-plans/batch-result.json
 python "$skillRoot\scripts\init\github_integration.py" push --dry-run
 python "$skillRoot\scripts\init\github_integration.py" push
 ```
@@ -333,8 +334,9 @@ python "$skillRoot\scripts\init\github_integration.py" push
 cd "$repo"
 python3 "$skill_root/scripts/init/github_integration.py" status
 python3 "$skill_root/scripts/init/github_integration.py" commit -m "Add AtCoder ABC350 A solution" path/to/file.cpp
+python3 "$skill_root/scripts/init/github_integration.py" commit -m "Publish Codeforces solutions" --paths-from-json .cp-publish-plans/batch-result.json
 python3 "$skill_root/scripts/init/github_integration.py" push --dry-run
 python3 "$skill_root/scripts/init/github_integration.py" push
 ```
 
-Stage and commit only explicit paths. Preserve unrelated user changes in the working tree.
+Stage and commit only explicit paths or pathspecs. For large batches, pass the batch output with `--paths-from-json <batch-result.json>` or write newline-delimited paths and pass `--paths-from-file <commit-paths.txt>`. Directory pathspecs are allowed; the helper expands them through git and still refuses unrelated staged paths. Preserve unrelated user changes in the working tree.

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import subprocess
 import sys
@@ -189,9 +190,12 @@ def print_status(root: Path) -> None:
     print("gh_auth: ok" if auth.returncode == 0 else "gh_auth: missing")
 
 
-def staged_paths(root: Path) -> set[str]:
+def staged_paths(root: Path, pathspecs: list[str] | None = None) -> set[str]:
     git = require_tool("git")
-    result = run([git, "diff", "--cached", "--name-only"], cwd=root)
+    command = [git, "diff", "--cached", "--name-only"]
+    if pathspecs:
+        command.extend(["--", *pathspecs])
+    result = run(command, cwd=root)
     return set(result.stdout.splitlines())
 
 
@@ -203,40 +207,85 @@ def normalize_repo_relative(root: Path, value: str) -> str:
     return os.path.relpath(path, root).replace("\\", "/")
 
 
+def read_paths_from_file(path: Path) -> list[str]:
+    try:
+        lines = path.read_text(encoding="utf-8-sig").splitlines()
+    except OSError as exc:
+        raise CommandError(f"Could not read paths file: {path}: {exc}") from exc
+    return [line.strip() for line in lines if line.strip()]
+
+
+def read_paths_from_json(path: Path, root: Path) -> list[str]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise CommandError(f"Could not read paths JSON: {path}: {exc}") from exc
+
+    if isinstance(payload, list):
+        values = payload
+    elif isinstance(payload, dict):
+        values = payload.get("commit_paths")
+        if values is None:
+            by_repo = payload.get("commit_paths_by_repo")
+            if isinstance(by_repo, dict):
+                root_key = os.path.normcase(str(root.resolve()))
+                for key, repo_values in by_repo.items():
+                    if os.path.normcase(str(Path(key).expanduser().resolve())) == root_key:
+                        values = repo_values
+                        break
+        if values is None:
+            raise CommandError(
+                "Paths JSON must contain `commit_paths`, `commit_paths_by_repo`, or be a list."
+            )
+    else:
+        raise CommandError("Paths JSON must be an object or list.")
+
+    if not isinstance(values, list) or not all(isinstance(item, str) and item for item in values):
+        raise CommandError("Commit paths in JSON must be a list of non-empty strings.")
+    return list(values)
+
+
+def collect_commit_paths(args: argparse.Namespace, root: Path) -> list[str]:
+    paths: list[str] = []
+    paths.extend(args.paths)
+    for raw in args.paths_from_file:
+        paths.extend(read_paths_from_file(Path(raw).expanduser()))
+    for raw in args.paths_from_json:
+        paths.extend(read_paths_from_json(Path(raw).expanduser(), root))
+    return list(dict.fromkeys(paths))
+
+
 def commit_paths(root: Path, paths: list[str], message: str) -> None:
     if not paths:
         raise CommandError("Commit requires at least one explicit path.")
 
-    allowed = {normalize_repo_relative(root, value) for value in paths}
+    pathspecs = sorted({normalize_repo_relative(root, value) for value in paths})
     git = require_tool("git")
 
     before = staged_paths(root)
-    unrelated_before = before - allowed
+    before_selected = staged_paths(root, pathspecs)
+    unrelated_before = before - before_selected
     if unrelated_before:
         raise CommandError(
             "Refusing to commit because unrelated paths are already staged:\n"
             + "\n".join(f"- {path}" for path in sorted(unrelated_before))
         )
 
-    run([git, "add", "--", *sorted(allowed)], cwd=root, capture=False)
+    run([git, "add", "--", *pathspecs], cwd=root, capture=False)
 
     after = staged_paths(root)
-    unrelated_after = after - allowed
+    selected_staged = staged_paths(root, pathspecs)
+    unrelated_after = after - selected_staged
     if unrelated_after:
         raise CommandError(
             "Refusing to commit because the index contains unexpected paths:\n"
             + "\n".join(f"- {path}" for path in sorted(unrelated_after))
         )
 
-    selected_staged = after & allowed
     if not selected_staged:
         raise CommandError("No staged changes to commit.")
 
-    run(
-        [git, "commit", "-m", message, "--", *sorted(selected_staged)],
-        cwd=root,
-        capture=False,
-    )
+    run([git, "commit", "-m", message], cwd=root, capture=False)
 
 
 def push_current_branch(root: Path, *, dry_run: bool) -> None:
@@ -292,7 +341,19 @@ def build_parser() -> argparse.ArgumentParser:
         "commit", help="Commit only the explicit paths provided."
     )
     commit_parser.add_argument("-m", "--message", required=True, help="Commit message.")
-    commit_parser.add_argument("paths", nargs="+", help="Paths to stage and commit.")
+    commit_parser.add_argument("paths", nargs="*", help="Paths or directories to stage and commit.")
+    commit_parser.add_argument(
+        "--paths-from-file",
+        action="append",
+        default=[],
+        help="Read additional commit paths/pathspecs from a newline-delimited file.",
+    )
+    commit_parser.add_argument(
+        "--paths-from-json",
+        action="append",
+        default=[],
+        help="Read commit_paths from a batch_publish JSON result or a JSON list.",
+    )
 
     push_parser = subparsers.add_parser("push", help="Push current branch to origin.")
     push_parser.add_argument(
@@ -318,7 +379,7 @@ def main(argv: list[str] | None = None) -> int:
             print_status(root)
         elif args.command == "commit":
             root = repo_root(Path(args.repo).resolve())
-            commit_paths(root, args.paths, args.message)
+            commit_paths(root, collect_commit_paths(args, root), args.message)
         elif args.command == "push":
             root = repo_root(Path(args.repo).resolve())
             push_current_branch(root, dry_run=args.dry_run)

@@ -241,6 +241,7 @@ $skillRoot = "C:\path\to\cp-publish-skill"
 Set-Location C:\path\to\resolved\repo
 python "$skillRoot\scripts\init\github_integration.py" status
 python "$skillRoot\scripts\init\github_integration.py" commit -m "Add AtCoder ABC350 A solution" path/to/file.cpp
+python "$skillRoot\scripts\init\github_integration.py" commit -m "Publish Codeforces solutions" --paths-from-json .cp-publish-plans/batch-result.json
 python "$skillRoot\scripts\init\github_integration.py" push --dry-run
 python "$skillRoot\scripts\init\github_integration.py" push
 ```
@@ -250,11 +251,12 @@ skill_root=/path/to/cp-publish-skill
 cd /path/to/resolved/repo
 python3 "$skill_root/scripts/init/github_integration.py" status
 python3 "$skill_root/scripts/init/github_integration.py" commit -m "Add AtCoder ABC350 A solution" path/to/file.cpp
+python3 "$skill_root/scripts/init/github_integration.py" commit -m "Publish Codeforces solutions" --paths-from-json .cp-publish-plans/batch-result.json
 python3 "$skill_root/scripts/init/github_integration.py" push --dry-run
 python3 "$skill_root/scripts/init/github_integration.py" push
 ```
 
-Stage and commit only explicit paths. Preserve unrelated user changes in the working tree.
+Stage and commit only explicit paths or pathspecs. For large batches, prefer `--paths-from-json <batch-result.json>` when using `batch_publish.py` output, or `--paths-from-file <commit-paths.txt>` for a newline-delimited path list. Directory pathspecs are allowed; the helper expands them through git and still refuses unrelated staged paths.
 
 Commit message examples:
 
