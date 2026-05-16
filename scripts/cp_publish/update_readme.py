@@ -317,7 +317,7 @@ def read_existing(readme_path: Path) -> tuple[str | None, list[Entry], list[Resu
     if not readme_path.exists():
         return None, [], [], []
 
-    lines = readme_path.read_text(encoding="utf-8").splitlines()
+    lines = readme_path.read_text(encoding="utf-8-sig").splitlines()
     if not lines:
         return None, [], [], []
 
@@ -351,6 +351,24 @@ def read_existing(readme_path: Path) -> tuple[str | None, list[Entry], list[Resu
             result_rows.extend(parsed_results)
 
     return header, entries, result_rows, unknown_lines
+
+
+def equivalent_contest_header(existing_header: str, expected_header: str) -> bool:
+    existing = existing_header.strip()
+    expected = expected_header.strip()
+    if existing == expected:
+        return True
+    prefix = "# "
+    if not existing.startswith(prefix) or not expected.startswith(prefix):
+        return False
+
+    def normalize_url(value: str) -> str:
+        url = value[len(prefix) :].strip().rstrip("/")
+        if url.endswith("/tasks"):
+            url = url[: -len("/tasks")]
+        return url
+
+    return normalize_url(existing) == normalize_url(expected)
 
 
 def render_result_table(rows: list[ResultRow]) -> list[str]:
@@ -496,23 +514,18 @@ def update_readme(args: argparse.Namespace) -> int:
 
     existing_header, entries, result_rows, unknown_lines = read_existing(readme_path)
     if existing_header and existing_header != expected_header:
-        if not args.force_header:
+        if not args.force_header and not equivalent_contest_header(existing_header, expected_header):
             raise ReadmeUpdateError(
                 "README header differs from the requested contest URL. "
                 "Pass --force-header to replace it."
             )
 
-    if unknown_lines and not args.force_rewrite:
-        raise ReadmeUpdateError(
-            "README contains unrecognized non-entry lines. "
-            "Pass --force-rewrite to normalize it.\n"
-            + "\n".join(f"  {line}" for line in unknown_lines[:5])
-        )
-
     updated_entries, action = update_entries(entries, new_entry)
     updated_result_rows = update_result_rows(result_rows, new_result_rows)
     rendered = render_readme(expected_header, updated_entries, updated_result_rows)
-    old_text = readme_path.read_text(encoding="utf-8") if readme_path.exists() else ""
+    if unknown_lines and not args.force_rewrite:
+        rendered = rendered.rstrip() + "\n\n" + "\n".join(unknown_lines) + "\n"
+    old_text = readme_path.read_text(encoding="utf-8-sig") if readme_path.exists() else ""
     changed = old_text != rendered
 
     result = {
