@@ -276,6 +276,16 @@ def detect_from_path(path: Path) -> Detection:
             detection.evidence.append("Codeforces Educational path convention")
             detection.confidence = "medium"
             return detection
+        if part == "global" and idx + 3 < len(parts) and parts[idx + 3].isdigit():
+            detection.platform = "codeforces"
+            detection.contest_kind = "Global"
+            detection.round_number = parts[idx + 3]
+            problem_id = target_style_problem_id(path.stem)
+            detection.problem_id = normalize_codeforces_problem_id(problem_id)
+            set_path_title(detection, path.stem, problem_id)
+            detection.evidence.append("Codeforces Global path convention")
+            detection.confidence = "medium"
+            return detection
         if part == "others" and idx + 4 < len(parts) and parts[idx + 4].isdigit():
             detection.platform = "codeforces"
             detection.contest_kind = "Others"

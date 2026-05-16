@@ -51,10 +51,15 @@ Educational Round는 `Educational/` 아래에 저장합니다.
 Educational/100/160/162/A_Example_Title.cpp
 ```
 
-Global Round, Hello, Good Bye, ICPC/IOI mirror, Kotlin Heroes, April Fools, Testing Round, 그리고 공식 `Codeforces Round` 토큰이 없는 sponsor/event contest는 contest 그룹 이름과 숫자 식별자를 뽑아 `Others/` 아래에 저장합니다.
+Global Round는 `Global/` 아래에 저장합니다.
 
 ```text
-Others/Global_Round/0/10/11/C_Example_Title.cpp
+Global/0/10/11/C_Example_Title.cpp
+```
+
+Hello, Good Bye, ICPC/IOI mirror, Kotlin Heroes, April Fools, Testing Round, 그리고 공식 `Codeforces Round` 토큰이 없는 sponsor/event contest는 contest 그룹 이름과 숫자 식별자를 뽑아 `Others/` 아래에 저장합니다.
+
+```text
 Others/Good_Bye/0/20/22/A_Example_Title.cpp
 Others/April_Fools/0/0/3/A_Example_Title.cpp
 ```

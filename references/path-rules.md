@@ -100,7 +100,13 @@ For Educational rounds, use the Educational round number under `Educational`:
 <target_base>/Educational/<hundreds_bucket>/<tens_bucket>/<round_number>/<problem_id>_<problem_title_slug>.<ext>
 ```
 
-For non-regular named contests, use the normalized contest group and the numeric round identifier from the contest name under `Others`:
+For Global rounds, use the Global Round number under `Global`:
+
+```text
+<target_base>/Global/<hundreds_bucket>/<tens_bucket>/<round_number>/<problem_id>_<problem_title_slug>.<ext>
+```
+
+For other non-regular named contests, use the normalized contest group and the numeric round identifier from the contest name under `Others`:
 
 ```text
 <target_base>/Others/<contest_group>/<hundreds_bucket>/<tens_bucket>/<round_number>/<problem_id>_<problem_title_slug>.<ext>
@@ -111,7 +117,7 @@ Normalize:
 - `contest_id`: numeric contest ID from the Codeforces URL/API, for example the `2222` in `https://codeforces.com/contest/2222`. Use this for API lookup and README links, not for folder placement.
 - `round_number`: numeric identifier parsed from the contest name. This is the folder number. For example, `Spectral::Cup 2026 Round 1 (Codeforces Round 1094, Div. 1 + Div. 2)` uses `1094`, not contest ID `2222`.
 - `contest_group`: for `Others` only, a normalized group name derived from the contest title, with spaces and punctuation replaced by underscores.
-- `contest_kind`: one of regular numeric contest, Educational contest, or Others. Ignore Div. 1, Div. 2, and Div. 3 labels for path placement.
+- `contest_kind`: one of regular numeric contest, Educational contest, Global contest, or Others. Ignore Div. 1, Div. 2, and Div. 3 labels for path placement.
 - `hundreds_bucket`: `(round_number // 100) * 100`, for example `1094 -> 1000`.
 - `tens_bucket`: `(round_number // 10) * 10`, for example `1094 -> 1090`.
 - `problem_id`: uppercase problem index, preserving multi-part indices such as `A1`, `B2`, or `C`.
@@ -131,9 +137,10 @@ In other words, company, event, or sponsor text does not make a contest `Others`
 
 Classify as `Educational` when the contest name contains `Educational Codeforces Round`. Extract the number after that token.
 
+Classify as `Global` when the contest name contains `Codeforces Global Round`. Extract the number after that token.
+
 Classify these as `Others` and use these preferred group names when applicable:
 
-- Codeforces Global rounds: `Global_Round`. Use the Global Round number.
 - Hello rounds: `Hello`. Use the last two digits of the year, for example `Hello 2026 -> 26`.
 - Good Bye rounds: `Good_Bye`. Use the last two digits of the year, for example `Good Bye 2022 -> 22`.
 - April Fools contests: `April_Fools`. Use the numeric contest/round identifier when present; if the title only gives a year, use the last two digits of that year.
@@ -151,17 +158,17 @@ Examples:
 | `https://codeforces.com/contest/2228/problem/A` with `Codeforces Round 1098 (Div. 2)` and title `Example Title` | `1000/1090/1098/A_Example_Title.cpp` |
 | `https://codeforces.com/contest/2222/problem/A` with `Spectral::Cup 2026 Round 1 (Codeforces Round 1094, Div. 1 + Div. 2)` and title `Example Title` | `1000/1090/1094/A_Example_Title.cpp` |
 | Educational contest ID `2225`, `Educational Codeforces Round 189`, problem `A`, title `Example Title` | `Educational/100/180/189/A_Example_Title.cpp` |
+| `Codeforces Global Round 11`, problem `C`, title `Example Title` | `Global/0/10/11/C_Example_Title.cpp` |
 | `CodeTON Round 9`, contest ID `2039`, problem `B`, title `Example Title` | `Others/CodeTON_Round/0/0/9/B_Example_Title.cpp` |
-| `Codeforces Global Round 11`, problem `C`, title `Example Title` | `Others/Global_Round/0/10/11/C_Example_Title.cpp` |
 | `Hello 2026`, problem `A`, title `Example Title` | `Others/Hello/0/20/26/A_Example_Title.cpp` |
 | `Good Bye 2022`, problem `A`, title `Example Title` | `Others/Good_Bye/0/20/22/A_Example_Title.cpp` |
 | `April Fools Contest 3`, problem `A`, title `Example Title` | `Others/April_Fools/0/0/3/A_Example_Title.cpp` |
 
-If the contest looks Educational but the round number is unclear, ask the user before publishing.
+If the contest looks Educational or Global but the round number is unclear, ask the user before publishing.
 
-If the contest looks like Global, Hello, Good Bye, ICPC, IOI, online mirror, or special named contest but the contest group or round number is unclear, ask the user before publishing.
+If the contest looks like Hello, Good Bye, ICPC, IOI, online mirror, or special named contest but the contest group or round number is unclear, ask the user before publishing.
 
-If the contest kind is unclear, ask the user whether to place it as regular numeric, `Educational`, or `Others`.
+If the contest kind is unclear, ask the user whether to place it as regular numeric, `Educational`, `Global`, or `Others`.
 
 ### Codeforces Combined Rounds
 
@@ -221,7 +228,7 @@ contest_id: <contest id>
 round_number: <round number, for Codeforces path placement>
 contest_group: <contest group, for Codeforces Others>
 problem_id: <problem id>
-contest_kind: <regular|Educational|Others, for Codeforces>
+contest_kind: <regular|Educational|Global|Others, for Codeforces>
 problem_title: <problem title>
 target: <target path>
 additional_targets: <extra target paths, for Codeforces combined rounds>

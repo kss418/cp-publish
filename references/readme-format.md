@@ -14,8 +14,8 @@ Examples:
 <target_base>/PAST/202309-open/README.md
 <target_base>/1900/1910/1917/README.md
 <target_base>/Educational/1900/1900/1900/README.md
+<target_base>/Global/0/10/11/README.md
 <target_base>/Others/<contest_group>/1900/1910/1917/README.md
-<target_base>/Others/Global_Round/0/10/11/README.md
 ```
 
 For Codeforces combined Div. 1 + Div. 2 problems with multiple target contest folders, update the `README.md` in every target contest folder.

@@ -37,9 +37,11 @@ def normalize_codeforces_kind(value: str) -> str:
         return "regular"
     if lowered == "educational":
         return "Educational"
+    if lowered == "global":
+        return "Global"
     if lowered in {"other", "others"}:
         return "Others"
-    raise argparse.ArgumentTypeError("contest kind must be regular, Educational, or Others")
+    raise argparse.ArgumentTypeError("contest kind must be regular, Educational, Global, or Others")
 
 
 def normalize_codeforces_round_number(value: str) -> str:
@@ -117,7 +119,7 @@ def infer_codeforces_kind_from_title(title: str) -> str:
     if "educational codeforces round" in lowered:
         return "Educational"
     if "codeforces global round" in lowered:
-        return "Others"
+        return "Global"
     if has_official_codeforces_round_token(title):
         return "regular"
     return "Others"
@@ -130,11 +132,12 @@ def extract_codeforces_round_number(title: str | None, contest_kind: str | None)
     patterns: list[str] = []
     if contest_kind == "Educational":
         patterns.append(r"\beducational\s+codeforces\s+round\s+#?(\d+)\b")
+    elif contest_kind == "Global":
+        patterns.append(r"\bcodeforces\s+global\s+round\s+#?(\d+)\b")
     elif contest_kind == "regular":
         patterns.append(r"\bcodeforces\s+(?:beta\s+)?round\s+#?(\d+)\b")
     elif contest_kind == "Others":
         direct_patterns = [
-            r"\bcodeforces\s+global\s+round\s+#?(\d+)\b",
             r"\bkotlin\s+heroes:\s*(?:episode|practice)\s+(\d+)\b",
             r"\bapril\s+fools(?:\s+day)?\s+contest\s+#?(\d{1,3})\b",
             r"\b(?:codeforces\s+)?testing\s+round\s+#?(\d+)\b",
@@ -179,9 +182,7 @@ def extract_codeforces_contest_group(title: str | None, contest_kind: str | None
 
     lowered = title.lower()
     group: str | None = None
-    if "codeforces global round" in lowered:
-        group = "Global_Round"
-    elif re.search(r"\bgood\s+bye\b|\bgoodbye\b", title, re.IGNORECASE):
+    if re.search(r"\bgood\s+bye\b|\bgoodbye\b", title, re.IGNORECASE):
         group = "Good_Bye"
     elif re.search(r"\bhello\b", title, re.IGNORECASE):
         group = "Hello"
@@ -289,6 +290,8 @@ def build_codeforces_target(
     base = route.target_base
     if target.contest_kind == "Educational":
         base = base / "Educational"
+    elif target.contest_kind == "Global":
+        base = base / "Global"
     elif target.contest_kind == "Others":
         contest_group = resolve_codeforces_contest_group(target)
         if not contest_group:

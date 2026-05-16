@@ -380,7 +380,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--problem-title", help="Override or provide the problem title. Single-source batches only.")
     parser.add_argument(
         "--contest-kind",
-        metavar="{regular,Educational,Others}",
+        metavar="{regular,Educational,Global,Others}",
         type=normalize_codeforces_kind,
         help="Codeforces path class.",
     )
@@ -393,7 +393,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--contest-group",
         type=normalize_codeforces_contest_group,
-        help="Codeforces Others group directory name, for example Global_Round.",
+        help="Codeforces Others group directory name, for example CodeTON_Round.",
     )
     parser.add_argument(
         "--additional-target",

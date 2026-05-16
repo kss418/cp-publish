@@ -143,7 +143,7 @@ def classify_codeforces_contest(
         title = contest.get("name")
 
     if not title:
-        warnings.append("Codeforces contest kind is unknown; pass --contest-kind regular|Educational|Others.")
+        warnings.append("Codeforces contest kind is unknown; pass --contest-kind regular|Educational|Global|Others.")
         return None, None
 
     return infer_codeforces_kind_from_title(title), title
