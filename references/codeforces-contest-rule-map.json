@@ -183,6 +183,12 @@
       "ICPC_World_Finals_Challenge": [
         "\\b(\\d+)(?:st|nd|rd|th)\\s+icpc\\s+world\\s+finals\\s+challenge\\b"
       ],
+      "Polynomial_Round": [
+        "\\bpolynomial\\s+round\\s+(?:19|20)(\\d{2})\\b"
+      ],
+      "TypeDB_Forces": [
+        "\\btypedb\\s+forces\\s+(?:19|20)(\\d{2})\\b"
+      ],
       "BOI": [
         "\\bbaltic\\s+olympiad\\s+in\\s+informatics\\s+(?:19|20)(\\d{2})\\b"
       ],

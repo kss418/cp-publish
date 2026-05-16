@@ -147,6 +147,7 @@ Classify these as `Others` and use these preferred group names when applicable:
 - Hello rounds: `Hello`. Use the last two digits of the year, for example `Hello 2026 -> 26`.
 - Good Bye rounds: `Good_Bye`. Use the last two digits of the year, for example `Good Bye 2022 -> 22`.
 - April Fools contests: `April_Fools`. Use the numeric contest/round identifier when present; if the title only gives a year, use the last two digits of that year.
+- Year-suffixed named rounds such as `Polynomial Round 2022` and `TypeDB Forces 2023`: use the last two digits of the year, for example `2022 -> 22`.
 - Kotlin Heroes: `Kotlin_Heroes`. Use the episode/practice number.
 - Testing Round: `Testing_Round`. Use the testing round number.
 - ICPC regional, championship, and challenge mirrors: prefer an `ICPC_<region_or_series>` group from `references/codeforces-contest-rule-map.json`, for example `ICPC_NERC_Northern_Eurasia_Finals`, `ICPC_Asia_Jakarta_Regional_Contest`, or `ICPC_SWERC`. Use the first year of a season as the round number, shortened to two digits, for example `2024-2025 -> 24`. Do not classify a contest as ICPC just because the title says `ICPC Rules`.
