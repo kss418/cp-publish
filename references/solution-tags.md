@@ -8,7 +8,7 @@ The allowed README tags are the values in `references/solvedac-tag-map.json`. Us
 
 - Use English tag names.
 - Use `Title_Case` with underscores for multi-word tags.
-- Keep common acronyms uppercase, for example `DP`, `BFS`, `DFS`, `DSU`, `LCA`, `MST`, `SCC`, `FFT`, `ETT`, `MCMF`, `CHT`, `MFMC`, and `DNC`.
+- Keep common acronyms uppercase, for example `DP`, `BFS`, `DFS`, `DSU`, `LCA`, `MST`, `SCC`, `FFT`, `ETT`, `MCMF`, `CHT`, `MFMC`, `DNC`, and `DNC_Optimization`.
 - Use only tag names that appear as values in `references/solvedac-tag-map.json`.
 - Separate multiple tags with `, `.
 - Prefer 1 to 5 tags per solution.
@@ -73,7 +73,7 @@ Dynamic programming:
 - `Knapsack`
 - `Digit_DP`
 - `Deque_DP`
-- `Divide_And_Conquer_Optimization`
+- `DNC_Optimization`
 
 Data structures:
 
@@ -147,6 +147,8 @@ disjoint_set -> DSU
 segtree -> Segment_Tree
 lazyprop -> Lazy_Propagation
 divide_and_conquer -> DNC
+dnc_optimization -> DNC_Optimization
+divide_and_conquer_optimization -> DNC_Optimization
 euler_tour_technique -> ETT
 mcmf -> MCMF
 cht -> CHT
@@ -156,6 +158,7 @@ Min_Cost_Max_Flow -> MCMF
 Convex_Hull_Trick -> CHT
 Max_Flow_Min_Cut -> MFMC
 Divide_And_Conquer -> DNC
+Divide_And_Conquer_Optimization -> DNC_Optimization
 aho_corasick -> Aho_Corasick
 ```
 
