@@ -169,6 +169,29 @@ def codeforces_kind_patterns(kind: str) -> list[str]:
     return codeforces_patterns(patterns.get(kind))
 
 
+def codeforces_title_override(title: str | None) -> dict[str, str] | None:
+    if not title:
+        return None
+    payload = load_codeforces_contest_rule_map()
+    overrides = payload.get("title_overrides")
+    if not isinstance(overrides, dict):
+        return None
+    wanted = normalize_codeforces_rule_key(title)
+    raw = None
+    for key, value in overrides.items():
+        if isinstance(key, str) and normalize_codeforces_rule_key(key) == wanted:
+            raw = value
+            break
+    if not isinstance(raw, dict):
+        return None
+    result = {
+        key: value
+        for key, value in raw.items()
+        if isinstance(key, str) and isinstance(value, str) and value
+    }
+    return result or None
+
+
 def codeforces_other_aliases() -> dict[str, str]:
     payload = load_codeforces_contest_rule_map()
     aliases = payload.get("others_group_aliases")
@@ -239,6 +262,9 @@ def has_official_codeforces_round_token(title: str) -> bool:
 
 
 def infer_codeforces_kind_from_title(title: str) -> str:
+    override = codeforces_title_override(title)
+    if override and override.get("contest_kind"):
+        return override["contest_kind"]
     for kind in ("Educational", "Global", "regular"):
         if any(re.search(pattern, title, re.IGNORECASE) for pattern in codeforces_kind_patterns(kind)):
             return kind
@@ -248,6 +274,10 @@ def infer_codeforces_kind_from_title(title: str) -> str:
 def extract_codeforces_round_number(title: str | None, contest_kind: str | None) -> str | None:
     if not title:
         return None
+
+    override = codeforces_title_override(title)
+    if override and override.get("round_number"):
+        return str(int(override["round_number"]))
 
     mapped_patterns = codeforces_round_number_patterns(contest_kind)
     if contest_kind == "Educational":
@@ -300,6 +330,13 @@ def extract_codeforces_round_number(title: str | None, contest_kind: str | None)
 def extract_codeforces_contest_group(title: str | None, contest_kind: str | None) -> str | None:
     if contest_kind != "Others" or not title:
         return None
+
+    override = codeforces_title_override(title)
+    if override and override.get("contest_group"):
+        try:
+            return normalize_codeforces_contest_group(override["contest_group"])
+        except argparse.ArgumentTypeError:
+            return None
 
     lowered = title.lower()
     group: str | None = None

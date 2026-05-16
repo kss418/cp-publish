@@ -1,6 +1,148 @@
 {
   "source": "https://codeforces.com/api/contest.list?gym=false",
   "style": "Map Codeforces contest title tokens to cp-publish contest kind, Others group names, and round-number extraction rules.",
+  "title_overrides": {
+    "AIM Tech Poorly Prepared Contest (unrated, funny, Div. 1 preferred)": {
+      "contest_kind": "Others",
+      "contest_group": "AIM_Tech_Poorly_Prepared_Contest",
+      "round_number": "20"
+    },
+    "AIM Tech Round (Div. 1)": {
+      "contest_kind": "Others",
+      "contest_group": "AIM_Tech_Round",
+      "round_number": "1"
+    },
+    "AIM Tech Round (Div. 2)": {
+      "contest_kind": "Others",
+      "contest_group": "AIM_Tech_Round",
+      "round_number": "1"
+    },
+    "All-Ukrainian School Olympiad in Informatics": {
+      "contest_kind": "Others",
+      "contest_group": "All_Ukrainian_School_Olympiad",
+      "round_number": "11"
+    },
+    "April Fools Day Contest": {
+      "contest_kind": "Others",
+      "contest_group": "April_Fools",
+      "round_number": "12"
+    },
+    "Bayan 2012-2013 Elimination Round (ACM ICPC Rules, English statements)": {
+      "contest_kind": "Others",
+      "contest_group": "Bayan_Elimination_Round",
+      "round_number": "12"
+    },
+    "Bubble Cup X - Finals [Online Mirror]": {
+      "contest_kind": "Others",
+      "contest_group": "Bubble_Cup",
+      "round_number": "10"
+    },
+    "CROC-MBTU 2012, Elimination Round (ACM-ICPC)": {
+      "contest_kind": "Others",
+      "contest_group": "CROC_MBTU_2012_Elimination_Round",
+      "round_number": "12"
+    },
+    "Dasha Code Championship - SPb Finals Round (only for onsite-finalists)": {
+      "contest_kind": "Others",
+      "contest_group": "Dasha_Code_Championship_SPb_Finals",
+      "round_number": "19"
+    },
+    "Dasha Code Championship - Novosibirsk Finals Round (only for onsite-finalists)": {
+      "contest_kind": "Others",
+      "contest_group": "Dasha_Code_Championship_Novosibirsk_Finals",
+      "round_number": "19"
+    },
+    "Ecnerwala vs Errichto Kotlin Match": {
+      "contest_kind": "Others",
+      "contest_group": "Ecnerwala_vs_Errichto_Kotlin_Match",
+      "round_number": "22"
+    },
+    "Experimental Educational Round: VolBIT Formulas Blitz": {
+      "contest_kind": "Others",
+      "contest_group": "Experimental_Educational_Round",
+      "round_number": "1"
+    },
+    "Forethought Future Cup - Elimination Round": {
+      "contest_kind": "Others",
+      "contest_group": "Forethought_Future_Cup",
+      "round_number": "19"
+    },
+    "Forethought Future Cup - Final Round (Onsite Finalists Only)": {
+      "contest_kind": "Others",
+      "contest_group": "Forethought_Future_Cup",
+      "round_number": "19"
+    },
+    "Friday the 13th, Programmers Day": {
+      "contest_kind": "Others",
+      "contest_group": "Friday_the_13th_Programmers_Day",
+      "round_number": "13"
+    },
+    "ICPC WF Moscow Invitational Contest - Online Mirror (Unrated, ICPC Rules, Teams Preferred)": {
+      "contest_kind": "Others",
+      "contest_group": "ICPC_WF_Moscow_Invitational_Contest",
+      "round_number": "21"
+    },
+    "IndiaHacks 2nd Elimination 2017 (unofficial, unrated mirror, ICPC rules)": {
+      "contest_kind": "Others",
+      "contest_group": "IndiaHacks_2017",
+      "round_number": "17"
+    },
+    "Intel Code Challenge Elimination Round (Div. 1 + Div. 2, combined)": {
+      "contest_kind": "Others",
+      "contest_group": "Intel_Code_Challenge",
+      "round_number": "16"
+    },
+    "Intel Code Challenge Final Round (Div. 1 + Div. 2, Combined)": {
+      "contest_kind": "Others",
+      "contest_group": "Intel_Code_Challenge",
+      "round_number": "16"
+    },
+    "XVIII Open Olympiad in Informatics - Final Stage, Day 1 (Unrated, Online Mirror, IOI rules)": {
+      "contest_kind": "Others",
+      "contest_group": "Open_Olympiad_in_Informatics",
+      "round_number": "18"
+    },
+    "XVIII Open Olympiad in Informatics - Final Stage, Day 2 (Unrated, Online Mirror, IOI rules)": {
+      "contest_kind": "Others",
+      "contest_group": "Open_Olympiad_in_Informatics",
+      "round_number": "18"
+    },
+    "XIX Open Olympiad in Informatics - Final Stage, Day 1 (Unrated, Online Mirror, IOI rules)": {
+      "contest_kind": "Others",
+      "contest_group": "Open_Olympiad_in_Informatics",
+      "round_number": "19"
+    },
+    "XIX Open Olympiad in Informatics - Final Stage, Day 2 (Unrated, Online Mirror, IOI rules)": {
+      "contest_kind": "Others",
+      "contest_group": "Open_Olympiad_in_Informatics",
+      "round_number": "19"
+    },
+    "Nebius Welcome Round (Div. 1 + Div. 2)": {
+      "contest_kind": "Others",
+      "contest_group": "Nebius_Welcome_Round",
+      "round_number": "23"
+    },
+    "Pinely Treasure Hunt Contest": {
+      "contest_kind": "Others",
+      "contest_group": "Pinely_Treasure_Hunt_Contest",
+      "round_number": "22"
+    },
+    "2018-2019 Russia Open High School Programming Contest (Unrated, Online Mirror, ICPC Rules, Teams Preferred)": {
+      "contest_kind": "Others",
+      "contest_group": "Russia_Open_High_School_Programming_Contest",
+      "round_number": "18"
+    },
+    "Tinkoff Challenge - Elimination Round": {
+      "contest_kind": "Others",
+      "contest_group": "Tinkoff_Challenge",
+      "round_number": "17"
+    },
+    "VeeRoute Marathon": {
+      "contest_kind": "Others",
+      "contest_group": "VeeRoute_Marathon",
+      "round_number": "16"
+    }
+  },
   "kind_patterns": {
     "Educational": [
       "\\beducational\\s+codeforces\\s+round\\b"
@@ -41,6 +183,13 @@
       "ICPC_World_Finals_Challenge": [
         "\\b(\\d+)(?:st|nd|rd|th)\\s+icpc\\s+world\\s+finals\\s+challenge\\b"
       ],
+      "BOI": [
+        "\\bbaltic\\s+olympiad\\s+in\\s+informatics\\s+(?:19|20)(\\d{2})\\b"
+      ],
+      "CEOI": [
+        "\\bceoi\\s+(?:19|20)(\\d{2})\\b",
+        "\\bcentral[-\\s]+european\\s+olympiad\\s+in\\s+informatics\\b.*\\b(?:19|20)(\\d{2})\\b"
+      ],
       "Manthan_Codefest_16": [
         "\\bmanthan\\b.*\\bcodefest\\s+(\\d+)\\b"
       ],
@@ -76,6 +225,9 @@
     "avito_code_challenge": "Avito_Code_Challenge",
     "avito_cool_challenge": "Avito_Cool_Challenge",
     "bayan_2015_contest": "Bayan_2015_Contest",
+    "baltic_olympiad_in_informatics": "BOI",
+    "ceoi": "CEOI",
+    "central_european_olympiad_in_informatics": "CEOI",
     "bubble_cup": "Bubble_Cup",
     "canada_cup": "Canada_Cup",
     "codecraft": "CodeCraft",
@@ -141,6 +293,7 @@
     "european_championship": "ICPC_European_Championship",
     "swerc": "ICPC_SWERC",
     "ioi": "IOI",
+    "open_olympiad_in_informatics": "Open_Olympiad_in_Informatics",
     "indiahacks_2016": "IndiaHacks_2016",
     "intel_code_challenge": "Intel_Code_Challenge",
     "kotlin_heroes": "Kotlin_Heroes",
@@ -168,6 +321,7 @@
     "rockethon_2014": "Rockethon_2014",
     "rockethon_2015": "Rockethon_2015",
     "russian_code_cup": "Russian_Code_Cup",
+    "russia_open_high_school_programming_contest": "Russia_Open_High_School_Programming_Contest",
     "school_regional_team_contest": "School_Regional_Team_Contest",
     "school_team_contest": "School_Team_Contest",
     "surprise_language_round": "Surprise_Language_Round",
@@ -200,6 +354,10 @@
     "codeforces_testing_round",
     "vk_cup",
     "technocup",
+    "open_olympiad_in_informatics",
+    "baltic_olympiad_in_informatics",
+    "central_european_olympiad_in_informatics",
+    "ceoi",
     "ioi"
   ]
 }

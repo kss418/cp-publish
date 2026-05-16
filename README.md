@@ -75,7 +75,7 @@ contest 그룹이나 라운드 번호를 안정적으로 뽑을 수 없으면 Co
 
 Java도 `.java` 확장자로 지원하지만 저장 시 `A_Title.java`처럼 문제 제목 기반 파일명으로 바뀝니다. `public class Main`을 쓰는 Java 풀이는 rename 후 컴파일이 깨질 수 있으므로 non-public `class Main`을 쓰거나 Java 풀이는 수동 publish하세요.
 
-자세한 규칙은 `references/path-rules.md`를 봅니다. Codeforces contest 종류, `Others` 그룹 alias, 라운드 번호 추출 규칙은 `references/codeforces-contest-rule-map.json`에서 관리합니다.
+자세한 규칙은 `references/path-rules.md`를 봅니다. Codeforces contest 종류, 정확한 제목 override, `Others` 그룹 alias, 라운드 번호 추출 규칙은 `references/codeforces-contest-rule-map.json`에서 관리합니다.
 
 ## 설치 방법
 
