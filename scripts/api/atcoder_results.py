@@ -17,9 +17,10 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 try:
-    from . import atcoder_metadata, http_support
+    from . import atcoder_metadata, atcoder_user_history, http_support
 except ImportError:
     import atcoder_metadata
+    import atcoder_user_history
     import http_support
 
 
@@ -39,7 +40,11 @@ def output_json(data: dict[str, Any], output: Path | None) -> None:
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(text, encoding="utf-8")
     else:
-        print(text, end="")
+        stdout_buffer = getattr(sys.stdout, "buffer", None)
+        if stdout_buffer is not None:
+            stdout_buffer.write(text.encode("utf-8"))
+        else:
+            sys.stdout.write(text)
 
 
 def cache_path(cache_dir: Path, url: str) -> Path:
@@ -295,8 +300,67 @@ def normalized_from_standings(
     }
 
 
+def normalized_not_participated(
+    *,
+    user: str,
+    contest_id: str,
+    contest_info: dict[str, Any] | None,
+    source: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "platform": "atcoder",
+        "user": user,
+        "participated": False,
+        "contest": {
+            "contest_id": contest_id,
+            "contest_name": contest_name(contest_id, contest_info),
+            "url": f"{ATCODER_CONTEST_BASE}/{contest_id}",
+        },
+        "problems": [],
+        "source": source,
+        "fetched_at_unix": int(time.time()),
+    }
+
+
+def load_participation_history(args: argparse.Namespace) -> dict[str, Any] | None:
+    if args.no_history_filter:
+        return None
+
+    try:
+        return atcoder_user_history.load_normalized_history(
+            user=args.user,
+            cache_dir=args.history_cache_dir.expanduser().resolve(),
+            max_age_seconds=args.history_max_age,
+            refresh=args.refresh,
+            no_cache=args.no_cache,
+            timeout=args.timeout,
+            contest_id=args.contest_id,
+        )
+    except atcoder_user_history.AtCoderUserHistoryError as exc:
+        message = f"AtCoder user history fetch failed; falling back to standings: {exc}"
+        if args.require_history:
+            raise AtCoderResultsError(message) from exc
+        print(f"warning: {message}", file=sys.stderr)
+        return None
+
+
 def fetch_standings_result(args: argparse.Namespace) -> dict[str, Any]:
     contest_info = find_contest_info(args.contest_id, args)
+    history = load_participation_history(args)
+    history_source = "atcoder.user.history.json" if history is not None else None
+    if history is not None and history.get("participated") is False:
+        return normalized_not_participated(
+            user=args.user,
+            contest_id=args.contest_id,
+            contest_info=contest_info,
+            source={
+                "participation_history": history_source,
+                "standings": None,
+                "submissions": None,
+                "contest_metadata": "atcoder.metadata.contests" if contest_info else None,
+            },
+        )
+
     standings_data = load_url(standings_url(args.contest_id), args)
     standings = standings_data.get("result")
     if not isinstance(standings, dict):
@@ -308,6 +372,7 @@ def fetch_standings_result(args: argparse.Namespace) -> dict[str, Any]:
         contest_info=contest_info,
         standings=standings,
         source={
+            "participation_history": history_source,
             "standings": "atcoder.standings.json",
             "submissions": None,
             "contest_metadata": "atcoder.metadata.contests" if contest_info else None,
@@ -338,6 +403,18 @@ def add_common_fetch_args(parser: argparse.ArgumentParser) -> None:
         type=Path,
         default=atcoder_metadata.default_cache_dir(),
         help="Directory for cached AtCoder metadata responses.",
+    )
+    parser.add_argument(
+        "--history-cache-dir",
+        type=Path,
+        default=atcoder_user_history.default_cache_dir(),
+        help="Directory for cached AtCoder user history responses.",
+    )
+    parser.add_argument(
+        "--history-max-age",
+        type=int,
+        default=atcoder_user_history.DEFAULT_MAX_AGE_SECONDS,
+        help="AtCoder user history cache max age in seconds. Defaults to 1 day.",
     )
     parser.add_argument(
         "--max-age",
@@ -371,6 +448,16 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("standings",),
         default="standings",
         help="Result source. standings uses AtCoder standings JSON.",
+    )
+    contest.add_argument(
+        "--no-history-filter",
+        action="store_true",
+        help="Do not check AtCoder user history before fetching standings.",
+    )
+    contest.add_argument(
+        "--require-history",
+        action="store_true",
+        help="Fail instead of falling back to standings when user history cannot be fetched.",
     )
 
     return parser

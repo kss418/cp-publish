@@ -217,6 +217,8 @@ For Codeforces contest path classification, follow `references/codeforces-contes
 
 For Codeforces result updates, prefer the default `scripts/api/codeforces_results.py contest` path. It fetches the user's bulk `user.status` once, caches that response for 1 hour, and computes per-contest wrong attempts and AC times locally. Do not use `--standings` or `--fallback-standings` unless official standings data is specifically needed or the bulk status path is insufficient.
 
+For AtCoder result updates, use the default `scripts/api/atcoder_results.py contest` path. It checks `scripts/api/atcoder_user_history.py` data from `users/<id>/history/json` first, caches that participation history per user for 1 day by default, and skips standings when the user did not participate in that contest. Use `--no-history-filter` only when the history precheck should be bypassed.
+
 If network metadata or result fetches fail because sandbox access is blocked, request approval to rerun the same command with network access. If the user does not approve or the API remains unavailable, continue only when local evidence is sufficient; otherwise ask for confirmation.
 
 Use only README tags that appear as values in `references/solvedac-tag-map.json`; solved.ac keys may be converted through that map. Do not invent fallback tag names.

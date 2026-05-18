@@ -78,6 +78,7 @@ Rules:
 - `AC Time`: contest-relative accepted time as `HH:MM:SS`.
 - Use `-` when the problem was not accepted.
 - Preserve and update existing result rows by `problem_id`.
+- For AtCoder, check the user's public contest history first and only fetch standings for contests that appear in that history.
 - If the user did not participate or result APIs are unavailable, omit the result table but keep `## Solutions` before the entries.
 
 ## Codeforces Example

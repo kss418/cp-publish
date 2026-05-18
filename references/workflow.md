@@ -203,15 +203,19 @@ Use result scripts when README work needs the user's per-problem wrong attempts 
 
 ```powershell
 python scripts/api/codeforces_results.py contest --contest-id 2061 --user <codeforces_handle>
+python scripts/api/atcoder_user_history.py --user <atcoder_id>
 python scripts/api/atcoder_results.py contest --contest-id abc422 --user <atcoder_id>
 ```
 
 ```sh
 python3 scripts/api/codeforces_results.py contest --contest-id 2061 --user <codeforces_handle>
+python3 scripts/api/atcoder_user_history.py --user <atcoder_id>
 python3 scripts/api/atcoder_results.py contest --contest-id abc422 --user <atcoder_id>
 ```
 
 For Codeforces, `codeforces_results.py contest` uses the user's bulk `user.status` response by default and caches it for 1 hour. This lets multi-contest README updates reuse one user submission fetch instead of calling a contest endpoint for every contest. Use `--standings` only when official standings data is required, and use `--fallback-standings` only when the bulk status path is insufficient.
+
+For AtCoder, `atcoder_results.py contest` checks `users/<id>/history/json` first. This user participation history is cached per user and refreshes after 1 day by default. If the user did not participate in the contest, it returns `participated: false` and skips standings so README updates omit the result table. Use `--no-history-filter` only when this participation precheck should be bypassed, or `--history-max-age` when the participation cache TTL must differ from the default.
 
 When result JSON is available, pass it to `scripts/cp_publish/update_readme.py --results-json`. If the user has no contest-time submissions, skip the result table and continue with the solution entry only.
 

@@ -13,6 +13,7 @@ AtCoder와 Codeforces 풀이 파일을 대상으로 문제 정보를 식별하�
 - AtCoder / Codeforces 경로 규칙 적용
 - AtCoder 로컬 메타데이터 기반 문제 제목, 추정 난이도 조회
 - Codeforces API 기반 contest, problem, rating 조회
+- AtCoder 사용자 contest 참가 기록 조회 및 결과표 생성 전 참가 여부 필터링
 - 사용자 contest 성적을 문제별 오답 횟수와 AC 시각 JSON으로 정규화
 - contest `README.md` 항목 생성 또는 갱신
 - 풀이 태그 문서 기반 README 태그 추론 보조
@@ -368,14 +369,16 @@ Codeforces는 기본적으로 `user.status` 전체 제출을 한 번 가져와 1
 AtCoder:
 
 ```powershell
+python scripts/api/atcoder_user_history.py --user <atcoder_id>
 python scripts/api/atcoder_results.py contest --contest-id abc422 --user <atcoder_id>
 ```
 
 ```sh
+python3 scripts/api/atcoder_user_history.py --user <atcoder_id>
 python3 scripts/api/atcoder_results.py contest --contest-id abc422 --user <atcoder_id>
 ```
 
-AtCoder는 AtCoder standings JSON을 사용합니다.
+AtCoder는 먼저 `users/<id>/history/json` 참가 기록을 확인합니다. 이 참가 기록은 사용자별로 캐시하고 기본 1일 단위로 갱신합니다. 사용자가 해당 contest에 참가하지 않았으면 `participated: false`를 출력하고 standings 조회를 건너뛰므로 README 결과표가 생기지 않습니다. 참가 기록을 확인할 수 있으면 AtCoder standings JSON으로 문제별 결과를 가져옵니다. 참가 기록 조회를 끄려면 `--no-history-filter`를, 참가 기록 캐시 갱신 주기를 바꾸려면 `--history-max-age`를 사용합니다.
 
 출력 형식은 다음과 같습니다.
 
@@ -433,6 +436,7 @@ scripts/cp_publish/apply_plan.py     # plan 기반 copy/move 및 README 갱신
 scripts/cp_publish/update_readme.py  # contest README 갱신
 scripts/api/atcoder_metadata.py      # AtCoder 메타데이터 조회
 scripts/api/codeforces_metadata.py   # Codeforces 메타데이터 조회
+scripts/api/atcoder_user_history.py  # AtCoder 사용자 contest 참가 기록 조회
 scripts/api/atcoder_results.py       # AtCoder contest 성적 JSON 정규화
 scripts/api/codeforces_results.py    # Codeforces contest 성적 JSON 정규화
 scripts/api/http_support.py          # API/HTTPS 요청과 인증서 진단 공통 helper
