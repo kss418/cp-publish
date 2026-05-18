@@ -29,6 +29,12 @@ API_BASE = "https://codeforces.com/api"
 DEFAULT_MAX_AGE_SECONDS = 24 * 60 * 60
 DEFAULT_TIMEOUT_SECONDS = 20
 USER_AGENT = "cp-publish/0.1"
+BUNDLED_METHOD_DIR = Path(__file__).resolve().parents[2] / "references" / "codeforces-cache"
+
+BUNDLED_METHODS = {
+    "contest.list": "contest-list.json",
+    "problemset.problems": "problemset-problems.json",
+}
 
 
 class CodeforcesApiError(RuntimeError):
@@ -100,6 +106,48 @@ def api_url(method: str, params: dict[str, str]) -> str:
     return f"{url}?{query}" if query else url
 
 
+def bundled_method_path(method: str, params: dict[str, str]) -> Path | None:
+    if params:
+        return None
+    filename = BUNDLED_METHODS.get(method)
+    if filename is None:
+        return None
+    return BUNDLED_METHOD_DIR / filename
+
+
+def read_bundled_method(method: str, params: dict[str, str]) -> dict[str, Any] | None:
+    path = bundled_method_path(method, params)
+    if path is None or not path.exists():
+        return None
+
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except OSError as exc:
+        raise CodeforcesApiError(f"Failed to read bundled Codeforces {method} cache: {path}") from exc
+    except json.JSONDecodeError as exc:
+        raise CodeforcesApiError(f"Bundled Codeforces {method} cache is invalid JSON: {path}") from exc
+
+    status = payload.get("status") if isinstance(payload, dict) else None
+    if status is not None and status != "OK":
+        comment = payload.get("comment") or "no error comment"
+        raise CodeforcesApiError(f"Bundled Codeforces {method} cache has status {status}: {comment}")
+
+    try:
+        fetched_at = int(path.stat().st_mtime)
+    except OSError:
+        fetched_at = int(time.time())
+
+    result = payload.get("result") if isinstance(payload, dict) else None
+    return {
+        "source": "bundled-cache",
+        "method": method,
+        "params": params,
+        "url": str(path),
+        "fetched_at_unix": fetched_at,
+        "result": result,
+    }
+
+
 def fetch_api(method: str, params: dict[str, str], timeout: int) -> dict[str, Any]:
     url = api_url(method, params)
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
@@ -152,6 +200,9 @@ def load_method(
         cached = read_cache(path, max_age_seconds)
         if cached is not None:
             return cached
+        bundled = read_bundled_method(method, normalized)
+        if bundled is not None:
+            return bundled
 
     data = fetch_api(method, normalized, timeout)
     if not no_cache:
