@@ -50,7 +50,7 @@ Rules:
 - `problem_id`: uppercase Codeforces problem index, preserving digits, for example `A`, `A1`, `B2`, `C`.
 - For AtCoder, use the uppercase task label such as `A`, `B`, `C`, or `Ex`.
 - `rating`: use the Codeforces `Problem.rating` value from metadata when available.
-- For AtCoder, use the estimated difficulty from Kenkoooo AtCoder Problems `problem-models.json` when available.
+- For AtCoder, use the estimated difficulty from local AtCoder metadata when available.
 - If rating is unknown, absent, or unavailable, write `$-$`.
 - Tags must follow `references/solution-tags.md` and must appear as values in `references/solvedac-tag-map.json`.
 - Put `## Solutions` before solution entries, even when there is no result table.

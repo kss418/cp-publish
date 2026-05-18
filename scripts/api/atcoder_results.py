@@ -9,7 +9,6 @@ import json
 import sys
 import time
 import urllib.error
-import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Any
@@ -25,7 +24,6 @@ except ImportError:
 
 
 ATCODER_CONTEST_BASE = "https://atcoder.jp/contests"
-KENKOOOO_API_BASE = "https://kenkoooo.com/atcoder/atcoder-api/v3"
 USER_AGENT = "cp-publish/0.1"
 
 
@@ -119,11 +117,6 @@ def load_url(url: str, args: argparse.Namespace) -> dict[str, Any]:
 
 def standings_url(contest_id: str) -> str:
     return f"{ATCODER_CONTEST_BASE}/{contest_id}/standings/json"
-
-
-def submissions_url(user: str, from_second: int) -> str:
-    query = urllib.parse.urlencode({"user": user, "from_second": from_second})
-    return f"{KENKOOOO_API_BASE}/user/submissions?{query}"
 
 
 def common_metadata_kwargs(args: argparse.Namespace) -> dict[str, Any]:
@@ -302,110 +295,6 @@ def normalized_from_standings(
     }
 
 
-def contest_problem_ids(contest_id: str, args: argparse.Namespace) -> list[str]:
-    data = load_metadata_resource("contest-problems", args)
-    mappings = data.get("result")
-    if not isinstance(mappings, list):
-        raise AtCoderResultsError("contest-problem.json did not contain a list.")
-
-    problem_ids: list[str] = []
-    seen: set[str] = set()
-    for mapping in mappings:
-        if not isinstance(mapping, dict) or mapping.get("contest_id") != contest_id:
-            continue
-        value = mapping.get("problem_id")
-        if isinstance(value, str) and value not in seen:
-            problem_ids.append(value)
-            seen.add(value)
-
-    if not problem_ids:
-        raise AtCoderResultsError(f"No contest-problem mapping found for {contest_id!r}.")
-    return problem_ids
-
-
-def contest_time_window(contest_id: str, contest_info: dict[str, Any] | None) -> tuple[int, int | None]:
-    if not contest_info:
-        raise AtCoderResultsError(f"Contest metadata is required for Kenkoooo submissions: {contest_id}")
-
-    start = int_or_none(contest_info.get("start_epoch_second"))
-    duration = int_or_none(contest_info.get("duration_second"))
-    if start is None:
-        raise AtCoderResultsError(f"Contest start time is missing for {contest_id!r}.")
-    end = start + duration if duration is not None else None
-    return start, end
-
-
-def normalized_from_kenkoooo_submissions(
-    *,
-    user: str,
-    contest_id: str,
-    contest_info: dict[str, Any] | None,
-    problem_ids: list[str],
-    submissions: list[dict[str, Any]],
-    source: dict[str, Any],
-) -> dict[str, Any]:
-    start, end = contest_time_window(contest_id, contest_info)
-    by_problem: dict[str, list[dict[str, Any]]] = {problem_id: [] for problem_id in problem_ids}
-
-    for submission in submissions:
-        if submission.get("contest_id") != contest_id:
-            continue
-        problem_id_value = submission.get("problem_id")
-        if not isinstance(problem_id_value, str):
-            continue
-        epoch_second = int_or_none(submission.get("epoch_second"))
-        if epoch_second is None or epoch_second < start:
-            continue
-        if end is not None and epoch_second > end:
-            continue
-        by_problem.setdefault(problem_id_value, []).append(submission)
-
-    if not any(by_problem.values()):
-        raise AtCoderResultsError(
-            f"No contest submissions found for {user!r} in contest {contest_id}."
-        )
-
-    normalized_problems: list[dict[str, Any]] = []
-    for problem_id_value in problem_ids:
-        wrong_attempts = 0
-        accepted_at: int | None = None
-
-        for submission in sorted(
-            by_problem.get(problem_id_value, []),
-            key=lambda item: item.get("epoch_second", 0),
-        ):
-            if accepted_at is not None:
-                break
-            result = submission.get("result")
-            epoch_second = int_or_none(submission.get("epoch_second"))
-            if result == "AC":
-                accepted_at = max(0, epoch_second - start) if epoch_second is not None else None
-            elif result not in (None, "WJ", "IE"):
-                wrong_attempts += 1
-
-        normalized_problems.append(
-            {
-                "problem_id": problem_label(problem_id_value, contest_id),
-                "wrong_attempts": wrong_attempts,
-                "accepted_at_seconds": accepted_at,
-            }
-        )
-
-    return {
-        "platform": "atcoder",
-        "user": user,
-        "participated": True,
-        "contest": {
-            "contest_id": contest_id,
-            "contest_name": contest_name(contest_id, contest_info),
-            "url": f"{ATCODER_CONTEST_BASE}/{contest_id}",
-        },
-        "problems": normalized_problems,
-        "source": source,
-        "fetched_at_unix": int(time.time()),
-    }
-
-
 def fetch_standings_result(args: argparse.Namespace) -> dict[str, Any]:
     contest_info = find_contest_info(args.contest_id, args)
     standings_data = load_url(standings_url(args.contest_id), args)
@@ -421,31 +310,7 @@ def fetch_standings_result(args: argparse.Namespace) -> dict[str, Any]:
         source={
             "standings": "atcoder.standings.json",
             "submissions": None,
-            "contest_metadata": "kenkoooo.resources.contests" if contest_info else None,
-        },
-    )
-
-
-def fetch_kenkoooo_submissions_result(args: argparse.Namespace) -> dict[str, Any]:
-    contest_info = find_contest_info(args.contest_id, args)
-    start, _ = contest_time_window(args.contest_id, contest_info)
-    problem_ids = contest_problem_ids(args.contest_id, args)
-    submissions_data = load_url(submissions_url(args.user, start), args)
-    submissions = submissions_data.get("result")
-    if not isinstance(submissions, list):
-        raise AtCoderResultsError("Kenkoooo user submissions returned an unexpected payload.")
-
-    return normalized_from_kenkoooo_submissions(
-        user=args.user,
-        contest_id=args.contest_id,
-        contest_info=contest_info,
-        problem_ids=problem_ids,
-        submissions=[item for item in submissions if isinstance(item, dict)],
-        source={
-            "standings": None,
-            "submissions": "kenkoooo.user.submissions",
-            "contest_metadata": "kenkoooo.resources.contests",
-            "contest_problem_metadata": "kenkoooo.resources.contest-problem",
+            "contest_metadata": "atcoder.metadata.contests" if contest_info else None,
         },
     )
 
@@ -453,8 +318,6 @@ def fetch_kenkoooo_submissions_result(args: argparse.Namespace) -> dict[str, Any
 def get_contest_result(args: argparse.Namespace) -> dict[str, Any]:
     if args.source == "standings":
         return fetch_standings_result(args)
-    if args.source == "kenkoooo-submissions":
-        return fetch_kenkoooo_submissions_result(args)
     raise AtCoderResultsError(f"Unknown source: {args.source}")
 
 
@@ -474,7 +337,7 @@ def add_common_fetch_args(parser: argparse.ArgumentParser) -> None:
         "--metadata-cache-dir",
         type=Path,
         default=atcoder_metadata.default_cache_dir(),
-        help="Directory for cached Kenkoooo metadata responses.",
+        help="Directory for cached AtCoder metadata responses.",
     )
     parser.add_argument(
         "--max-age",
@@ -505,9 +368,9 @@ def build_parser() -> argparse.ArgumentParser:
     contest.add_argument("--user", required=True, help="AtCoder user ID.")
     contest.add_argument(
         "--source",
-        choices=("standings", "kenkoooo-submissions"),
+        choices=("standings",),
         default="standings",
-        help="Result source. standings uses AtCoder standings JSON; kenkoooo-submissions computes from user submissions.",
+        help="Result source. standings uses AtCoder standings JSON.",
     )
 
     return parser

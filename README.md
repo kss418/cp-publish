@@ -11,7 +11,7 @@ AtCoder와 Codeforces 풀이 파일을 대상으로 문제 정보를 식별하�
 - 사용자별 풀이 저장소 라우팅 설정
 - AtCoder ID / Codeforces handle 저장
 - AtCoder / Codeforces 경로 규칙 적용
-- AtCoder Kenkoooo 메타데이터 기반 문제 제목, 추정 난이도 조회
+- AtCoder 로컬 메타데이터 기반 문제 제목, 추정 난이도 조회
 - Codeforces API 기반 contest, problem, rating 조회
 - 사용자 contest 성적을 문제별 오답 횟수와 AC 시각 JSON으로 정규화
 - contest `README.md` 항목 생성 또는 갱신
@@ -307,7 +307,7 @@ A / Rating : $800$ / Case_Work
 B / Rating : $1100$ / Math, Greedy
 ```
 
-AtCoder도 같은 형식을 사용합니다. AtCoder rating은 Kenkoooo의 추정 난이도를 사용하고, 없거나 모르면 `$-$`로 씁니다.
+AtCoder도 같은 형식을 사용합니다. AtCoder rating은 로컬 메타데이터의 추정 난이도를 사용하고, 없거나 모르면 `$-$`로 씁니다.
 
 사용자 ID가 config에 저장되어 있고 해당 사용자가 contest를 친 기록을 가져올 수 있으면 `## Results` 표를 같이 씁니다. 참가 기록이 없거나 API 조회가 실패하면 `## Results` 표는 생략하되 `## Solutions` 아래에 풀이 항목을 씁니다.
 
@@ -369,15 +369,13 @@ AtCoder:
 
 ```powershell
 python scripts/api/atcoder_results.py contest --contest-id abc422 --user <atcoder_id>
-python scripts/api/atcoder_results.py contest --contest-id abc422 --user <atcoder_id> --source kenkoooo-submissions
 ```
 
 ```sh
 python3 scripts/api/atcoder_results.py contest --contest-id abc422 --user <atcoder_id>
-python3 scripts/api/atcoder_results.py contest --contest-id abc422 --user <atcoder_id> --source kenkoooo-submissions
 ```
 
-AtCoder는 기본적으로 AtCoder standings JSON을 사용합니다. `--source kenkoooo-submissions`를 주면 Kenkoooo user submissions API에서 제출을 가져와 계산합니다.
+AtCoder는 AtCoder standings JSON을 사용합니다.
 
 출력 형식은 다음과 같습니다.
 

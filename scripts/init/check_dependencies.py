@@ -60,7 +60,6 @@ INSTALL_DOCS = {
 
 HTTPS_PROBES = [
     ("codeforces", "https://codeforces.com/api/user.info?handles=tourist"),
-    ("kenkoooo", "https://kenkoooo.com/atcoder/resources/contests.json"),
     ("atcoder", "https://atcoder.jp/"),
 ]
 
@@ -292,7 +291,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--https",
         action="store_true",
-        help="Also verify Python HTTPS/TLS access to Codeforces, Kenkoooo, and AtCoder.",
+        help="Also verify Python HTTPS/TLS access to Codeforces and AtCoder.",
     )
     parser.add_argument(
         "--https-timeout",

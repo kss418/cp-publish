@@ -197,20 +197,18 @@ python3 scripts/api/atcoder_metadata.py problem abc422_a
 python3 scripts/api/atcoder_metadata.py rating abc422_a
 ```
 
-For `plan_publish.py`, use `--refresh-metadata` only when the user explicitly requests fresh metadata. For metadata and result helper scripts, use `--refresh`. Default Codeforces `contest.list` and `problemset.problems` metadata is read from the bundled `references/codeforces-cache/` snapshots before attempting fresh Codeforces API fetches. AtCoder Kenkoooo resources are read from the bundled `references/atcoder-cache/` snapshots by default before attempting fresh Kenkoooo fetches. If a fetch fails because network access is blocked, request approval to rerun the same command with network access.
+For `plan_publish.py`, use `--refresh-metadata` only when the user explicitly requests fresh metadata. For metadata and result helper scripts, use `--refresh`. Default Codeforces `contest.list` and `problemset.problems` metadata is read from the bundled `references/codeforces-cache/` snapshots before attempting fresh Codeforces API fetches. AtCoder metadata is read from the bundled `references/atcoder-cache/` snapshots by default. If a fetch fails because network access is blocked, request approval to rerun the same command with network access.
 
 Use result scripts when README work needs the user's per-problem wrong attempts and accepted time:
 
 ```powershell
 python scripts/api/codeforces_results.py contest --contest-id 2061 --user <codeforces_handle>
 python scripts/api/atcoder_results.py contest --contest-id abc422 --user <atcoder_id>
-python scripts/api/atcoder_results.py contest --contest-id abc422 --user <atcoder_id> --source kenkoooo-submissions
 ```
 
 ```sh
 python3 scripts/api/codeforces_results.py contest --contest-id 2061 --user <codeforces_handle>
 python3 scripts/api/atcoder_results.py contest --contest-id abc422 --user <atcoder_id>
-python3 scripts/api/atcoder_results.py contest --contest-id abc422 --user <atcoder_id> --source kenkoooo-submissions
 ```
 
 For Codeforces, `codeforces_results.py contest` uses the user's bulk `user.status` response by default and caches it for 1 hour. This lets multi-contest README updates reuse one user submission fetch instead of calling a contest endpoint for every contest. Use `--standings` only when official standings data is required, and use `--fallback-standings` only when the bulk status path is insufficient.

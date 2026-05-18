@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fetch AtCoder metadata from kenkoooo AtCoder Problems resources."""
+"""Fetch AtCoder metadata from local caches and official AtCoder pages."""
 
 from __future__ import annotations
 
@@ -25,7 +25,6 @@ except ImportError:
     import http_support
 
 
-RESOURCE_BASE = "https://kenkoooo.com/atcoder/resources"
 ATCODER_CONTEST_BASE = "https://atcoder.jp/contests"
 DEFAULT_MAX_AGE_SECONDS = 24 * 60 * 60
 DEFAULT_TIMEOUT_SECONDS = 20
@@ -101,11 +100,6 @@ def write_cache(path: Path, data: dict[str, Any]) -> None:
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def resource_url(resource: str) -> str:
-    filename = RESOURCES[resource]
-    return f"{RESOURCE_BASE}/{filename}"
-
-
 def bundled_resource_path(resource: str) -> Path | None:
     filename = BUNDLED_RESOURCES.get(resource)
     if filename is None:
@@ -135,36 +129,6 @@ def read_bundled_resource(resource: str) -> dict[str, Any] | None:
         "resource": resource,
         "url": str(path),
         "fetched_at_unix": fetched_at,
-        "result": payload,
-    }
-
-
-def fetch_resource(resource: str, timeout: int) -> dict[str, Any]:
-    url = resource_url(resource)
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-
-    try:
-        with http_support.open_url(request, timeout=timeout) as response:
-            body = response.read().decode("utf-8")
-    except urllib.error.HTTPError as exc:
-        raise AtCoderMetadataError(f"AtCoder metadata HTTP {exc.code}: {url}") from exc
-    except urllib.error.URLError as exc:
-        raise AtCoderMetadataError(
-            f"Failed to reach AtCoder metadata: {http_support.format_url_error(exc)}"
-        ) from exc
-    except TimeoutError as exc:
-        raise AtCoderMetadataError("Timed out while fetching AtCoder metadata.") from exc
-
-    try:
-        payload = json.loads(body)
-    except json.JSONDecodeError as exc:
-        raise AtCoderMetadataError(f"AtCoder metadata returned invalid JSON: {resource}") from exc
-
-    return {
-        "source": "api",
-        "resource": resource,
-        "url": url,
-        "fetched_at_unix": int(time.time()),
         "result": payload,
     }
 
@@ -304,10 +268,11 @@ def load_resource(
         if bundled is not None:
             return bundled
 
-    data = fetch_resource(resource, timeout)
-    if not no_cache:
-        write_cache(path, data)
-    return data
+    raise AtCoderMetadataError(
+        f"AtCoder metadata resource {resource!r} is not available in local cache. "
+        "Online AtCoder Problems resource refresh is disabled; use the bundled cache "
+        "or the official AtCoder task-page fallback for problem titles."
+    )
 
 
 def output_json(data: dict[str, Any], output: Path | None) -> None:
@@ -482,7 +447,7 @@ def add_common_fetch_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--refresh",
         action="store_true",
-        help="Ignore cache and fetch from kenkoooo.",
+        help="Ignore local metadata cache. Online resource refresh is disabled for bundled resources.",
     )
     parser.add_argument(
         "--no-cache",
