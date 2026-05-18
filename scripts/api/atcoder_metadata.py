@@ -31,12 +31,17 @@ DEFAULT_MAX_AGE_SECONDS = 24 * 60 * 60
 DEFAULT_TIMEOUT_SECONDS = 20
 MIN_API_INTERVAL_SECONDS = 1.1
 USER_AGENT = "cp-publish/0.1"
+BUNDLED_RESOURCE_DIR = Path(__file__).resolve().parents[2] / "references" / "atcoder-cache"
 
 RESOURCES = {
     "contests": "contests.json",
     "problems": "problems.json",
     "merged-problems": "merged-problems.json",
     "contest-problems": "contest-problem.json",
+    "ratings": "problem-models.json",
+}
+
+BUNDLED_RESOURCES = {
     "ratings": "problem-models.json",
 }
 
@@ -95,6 +100,39 @@ def write_cache(path: Path, data: dict[str, Any]) -> None:
 def resource_url(resource: str) -> str:
     filename = RESOURCES[resource]
     return f"{RESOURCE_BASE}/{filename}"
+
+
+def bundled_resource_path(resource: str) -> Path | None:
+    filename = BUNDLED_RESOURCES.get(resource)
+    if filename is None:
+        return None
+    return BUNDLED_RESOURCE_DIR / filename
+
+
+def read_bundled_resource(resource: str) -> dict[str, Any] | None:
+    path = bundled_resource_path(resource)
+    if path is None or not path.exists():
+        return None
+
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except OSError as exc:
+        raise AtCoderMetadataError(f"Failed to read bundled AtCoder {resource} cache: {path}") from exc
+    except json.JSONDecodeError as exc:
+        raise AtCoderMetadataError(f"Bundled AtCoder {resource} cache is invalid JSON: {path}") from exc
+
+    try:
+        fetched_at = int(path.stat().st_mtime)
+    except OSError:
+        fetched_at = int(time.time())
+
+    return {
+        "source": "bundled-cache",
+        "resource": resource,
+        "url": str(path),
+        "fetched_at_unix": fetched_at,
+        "result": payload,
+    }
 
 
 def fetch_resource(resource: str, timeout: int) -> dict[str, Any]:
@@ -258,6 +296,9 @@ def load_resource(
         cached = read_cache(path, max_age_seconds)
         if cached is not None:
             return cached
+        bundled = read_bundled_resource(resource)
+        if bundled is not None:
+            return bundled
 
     data = fetch_resource(resource, timeout)
     if not no_cache:

@@ -211,7 +211,7 @@ rm "$batch_plan"
 
 Load `references/path-rules.md` when checking placement or target paths. Load `references/readme-format.md` and `references/solution-tags.md` before README-specific edits or tag inference.
 
-Use Codeforces metadata for Codeforces contest names, contest kinds, problem names, and ratings. Use AtCoder/Kenkoooo metadata for AtCoder problem titles and estimated difficulty; if Kenkoooo title resources fail, rely on the bundled official AtCoder tasks-page fallback, which is cached per contest. For `plan_publish.py`, use `--refresh-metadata` only when the user explicitly requests fresh metadata. For metadata and result helper scripts, use `--refresh`.
+Use Codeforces metadata for Codeforces contest names, contest kinds, problem names, and ratings. Use AtCoder/Kenkoooo metadata for AtCoder problem titles and estimated difficulty; if Kenkoooo title resources fail, rely on the bundled official AtCoder tasks-page fallback, which is cached per contest. AtCoder estimated difficulty comes from Kenkoooo `problem-models.json`; the skill includes `references/atcoder-cache/problem-models.json` as the default bundled rating cache, so normal runs should use it before attempting a fresh Kenkoooo ratings fetch. For `plan_publish.py`, use `--refresh-metadata` only when the user explicitly requests fresh metadata. For metadata and result helper scripts, use `--refresh`.
 
 When migrating an existing AtCoder contest folder with `--tags-from-readme`, preserve each problem's README rating from the existing entry if fresh estimated-difficulty metadata is unavailable. Do not let a Kenkoooo outage replace known ratings with `$-$`.
 
