@@ -219,6 +219,16 @@ For AtCoder, `atcoder_results.py contest` checks `users/<id>/history/json` first
 
 When result JSON is available, pass it to `scripts/cp_publish/update_readme.py --results-json`. If the user has no contest-time submissions, skip the result table and continue with the solution entry only.
 
+For AtCoder local result-table computation, prefer the bundled cache first:
+
+```text
+references/atcoder-cache/contest_result_table_submissions.zip
+```
+
+The zip contains `contest_result_table_submissions.csv`, filtered to official contest-window submissions and reduced to `id`, `epoch_second`, `contest_id`, `problem_id`, `user_id`, and `result`. `CE`, `IE`, and `WJ` rows are omitted because they do not affect README result tables. Stream the CSV from the zip when possible instead of extracting large files into the repo.
+
+Only rebuild that cache from a full AtCoder Problems `submissions.csv` snapshot when the user explicitly asks.
+
 ## Plan And Apply
 
 Build a plan before changing files:

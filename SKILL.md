@@ -219,6 +219,8 @@ For Codeforces result updates, prefer the default `scripts/api/codeforces_result
 
 For AtCoder result updates, use the default `scripts/api/atcoder_results.py contest` path. It checks `scripts/api/atcoder_user_history.py` data from `users/<id>/history/json` first, caches that participation history per user for 1 day by default, and skips standings when the user did not participate in that contest. Use `--no-history-filter` only when the history precheck should be bypassed.
 
+For AtCoder result-table backfills, prefer the bundled cache `references/atcoder-cache/contest_result_table_submissions.zip` when standings is unavailable or many contests need local computation. The zip contains `contest_result_table_submissions.csv`, filtered to official contest-window submissions and reduced to the columns needed for README result tables: `id`, `epoch_second`, `contest_id`, `problem_id`, `user_id`, and `result`. It excludes `CE`, `IE`, and `WJ` rows because they do not affect wrong-attempt counts or AC time. Do not download or regenerate the full AtCoder Problems submissions CSV unless the user explicitly asks.
+
 If network metadata or result fetches fail because sandbox access is blocked, request approval to rerun the same command with network access. If the user does not approve or the API remains unavailable, continue only when local evidence is sufficient; otherwise ask for confirmation.
 
 Use only README tags that appear as values in `references/solvedac-tag-map.json`; solved.ac keys may be converted through that map. Do not invent fallback tag names.
