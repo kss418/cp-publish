@@ -167,7 +167,7 @@ python scripts/init/configure_repos.py validate --platform codeforces
 python scripts/init/configure_repos.py resolve atcoder
 python scripts/init/configure_repos.py resolve codeforces
 python scripts/init/configure_repos.py user codeforces --id <codeforces_handle>
-python scripts/init/configure_repos.py user atcoder --id kss418
+python scripts/init/configure_repos.py user atcoder --id <atcoder_id>
 ```
 
 macOS / Linux:
@@ -179,7 +179,7 @@ python3 scripts/init/configure_repos.py validate --platform codeforces
 python3 scripts/init/configure_repos.py resolve atcoder
 python3 scripts/init/configure_repos.py resolve codeforces
 python3 scripts/init/configure_repos.py user codeforces --id <codeforces_handle>
-python3 scripts/init/configure_repos.py user atcoder --id kss418
+python3 scripts/init/configure_repos.py user atcoder --id <atcoder_id>
 ```
 
 ## Codex에서 사용하는 법
@@ -187,7 +187,7 @@ python3 scripts/init/configure_repos.py user atcoder --id kss418
 Codex에서 다음처럼 요청합니다.
 
 ```text
-Use $cp-publish to publish my latest AtCoder solution to GitHub.
+Use $cp-publish to publish a local AtCoder solution to GitHub.
 ```
 
 또는 한국어로 자연스럽게 요청해도 됩니다.
@@ -321,7 +321,7 @@ python scripts/cp_publish/update_readme.py --contest-dir C:\path\to\contest --co
 
 ```sh
 python3 scripts/cp_publish/update_readme.py --contest-dir /path/to/contest --contest-url https://atcoder.jp/contests/abc422 --problem-id A --rating - --tags Case_Work
-python3 scripts/api/atcoder_results.py contest --contest-id abc422 --user kss418 --output /path/to/results.json
+python3 scripts/api/atcoder_results.py contest --contest-id abc422 --user <atcoder_id> --output /path/to/results.json
 python3 scripts/cp_publish/update_readme.py --contest-dir /path/to/contest --contest-url https://atcoder.jp/contests/abc422 --problem-id A --rating - --tags Case_Work --results-json /path/to/results.json
 ```
 
@@ -368,13 +368,13 @@ Codeforces는 기본적으로 `user.status` 전체 제출을 한 번 가져와 1
 AtCoder:
 
 ```powershell
-python scripts/api/atcoder_results.py contest --contest-id abc422 --user kss418
-python scripts/api/atcoder_results.py contest --contest-id abc422 --user kss418 --source kenkoooo-submissions
+python scripts/api/atcoder_results.py contest --contest-id abc422 --user <atcoder_id>
+python scripts/api/atcoder_results.py contest --contest-id abc422 --user <atcoder_id> --source kenkoooo-submissions
 ```
 
 ```sh
-python3 scripts/api/atcoder_results.py contest --contest-id abc422 --user kss418
-python3 scripts/api/atcoder_results.py contest --contest-id abc422 --user kss418 --source kenkoooo-submissions
+python3 scripts/api/atcoder_results.py contest --contest-id abc422 --user <atcoder_id>
+python3 scripts/api/atcoder_results.py contest --contest-id abc422 --user <atcoder_id> --source kenkoooo-submissions
 ```
 
 AtCoder는 기본적으로 AtCoder standings JSON을 사용합니다. `--source kenkoooo-submissions`를 주면 Kenkoooo user submissions API에서 제출을 가져와 계산합니다.

@@ -161,7 +161,7 @@ For multiple solution files, prefer `scripts/cp_publish/batch_publish.py` over r
 
 For non-trivial batches, save the dry-run plan with `--save-plan .cp-publish-plans/batch.json`, inspect the JSON, then apply it with `--apply-plan .cp-publish-plans/batch.json`. This reuses the plans from dry-run and skips rebuilding detection/metadata during apply.
 
-Use `--from-dir <dir>` for a contest folder, or pass multiple file paths directly. Use `--tags-from-readme` when migrating an existing contest folder that already has README entries, and `--problem-id-from-filename` only when the filename prefix is trusted as the problem id.
+Use `--from-dir <dir>` for a contest folder, or pass multiple file paths directly. Use `--problem-id-from-filename` only when the filename prefix is trusted as the problem id.
 
 ```powershell
 $skillRoot = "C:\path\to\cp-publish-skill"
@@ -193,7 +193,7 @@ Batch example:
 $planDir = Join-Path $repo ".cp-publish-plans"
 New-Item -ItemType Directory -Force -Path $planDir | Out-Null
 $batchPlan = Join-Path $planDir "batch.json"
-python "$skillRoot\scripts\cp_publish\batch_publish.py" --from-dir C:\path\to\contest --move --dry-run --tags-from-readme --save-plan "$batchPlan"
+python "$skillRoot\scripts\cp_publish\batch_publish.py" --from-dir C:\path\to\contest --move --dry-run --save-plan "$batchPlan"
 python "$skillRoot\scripts\cp_publish\batch_publish.py" --apply-plan "$batchPlan"
 Remove-Item -LiteralPath "$batchPlan"
 ```
@@ -202,7 +202,7 @@ Remove-Item -LiteralPath "$batchPlan"
 plan_dir="$repo/.cp-publish-plans"
 mkdir -p "$plan_dir"
 batch_plan="$plan_dir/batch.json"
-python3 "$skill_root/scripts/cp_publish/batch_publish.py" --from-dir /path/to/contest --move --dry-run --tags-from-readme --save-plan "$batch_plan"
+python3 "$skill_root/scripts/cp_publish/batch_publish.py" --from-dir /path/to/contest --move --dry-run --save-plan "$batch_plan"
 python3 "$skill_root/scripts/cp_publish/batch_publish.py" --apply-plan "$batch_plan"
 rm "$batch_plan"
 ```
@@ -212,8 +212,6 @@ rm "$batch_plan"
 Load `references/path-rules.md` when checking placement or target paths. Load `references/readme-format.md` and `references/solution-tags.md` before README-specific edits or tag inference.
 
 Use Codeforces metadata for Codeforces contest names, contest kinds, problem names, and ratings. Default Codeforces `contest.list` and `problemset.problems` calls should use the bundled `references/codeforces-cache/` snapshots before attempting fresh Codeforces API fetches. Use AtCoder/Kenkoooo metadata for AtCoder problem titles and estimated difficulty; if Kenkoooo title resources fail, rely on the bundled official AtCoder tasks-page fallback, which is cached per contest. The skill includes `references/atcoder-cache/` snapshots for Kenkoooo AtCoder resources (`contests.json`, `problems.json`, `merged-problems.json`, `contest-problem.json`, and `problem-models.json`), so normal runs should use the bundled cache before attempting fresh Kenkoooo fetches. For `plan_publish.py`, use `--refresh-metadata` only when the user explicitly requests fresh metadata. For metadata and result helper scripts, use `--refresh`.
-
-When migrating an existing AtCoder contest folder with `--tags-from-readme`, preserve each problem's README rating from the existing entry if fresh estimated-difficulty metadata is unavailable. Do not let a Kenkoooo outage replace known ratings with `$-$`.
 
 For Codeforces contest path classification, follow `references/codeforces-contest-rule-map.json` as the canonical editable map. Prefer updating that map for named rounds, special contests, exact one-off title overrides, and Others group aliases instead of adding hard-coded contest-title branches.
 

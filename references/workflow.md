@@ -257,14 +257,14 @@ Use `scripts/cp_publish/batch_publish.py` when publishing more than one source f
 
 For non-trivial batches, save the dry-run plan and apply that saved plan. This avoids rebuilding detection and metadata work during apply:
 
-Folder migration example:
+Contest folder example:
 
 ```powershell
 Set-Location $repo
 $planDir = Join-Path $repo ".cp-publish-plans"
 New-Item -ItemType Directory -Force -Path $planDir | Out-Null
 $batchPlan = Join-Path $planDir "batch.json"
-python "$skillRoot\scripts\cp_publish\batch_publish.py" --from-dir C:\path\to\contest --move --dry-run --tags-from-readme --save-plan "$batchPlan"
+python "$skillRoot\scripts\cp_publish\batch_publish.py" --from-dir C:\path\to\contest --move --dry-run --save-plan "$batchPlan"
 python "$skillRoot\scripts\cp_publish\batch_publish.py" --apply-plan "$batchPlan"
 Remove-Item -LiteralPath "$batchPlan"
 ```
@@ -274,7 +274,7 @@ cd "$repo"
 plan_dir="$repo/.cp-publish-plans"
 mkdir -p "$plan_dir"
 batch_plan="$plan_dir/batch.json"
-python3 "$skill_root/scripts/cp_publish/batch_publish.py" --from-dir /path/to/contest --move --dry-run --tags-from-readme --save-plan "$batch_plan"
+python3 "$skill_root/scripts/cp_publish/batch_publish.py" --from-dir /path/to/contest --move --dry-run --save-plan "$batch_plan"
 python3 "$skill_root/scripts/cp_publish/batch_publish.py" --apply-plan "$batch_plan"
 rm "$batch_plan"
 ```
@@ -291,7 +291,6 @@ python3 "$skill_root/scripts/cp_publish/batch_publish.py" --move --dry-run --tag
 
 Useful options:
 
-- `--tags-from-readme`: use existing per-problem README tags and ratings when migrating an old contest folder.
 - `--problem-id-from-filename`: use trusted filename prefixes such as `A`, `C1`, or `G-1` as problem IDs.
 - `--no-results`: skip result lookup; by default, batch publishing fetches each unique contest/user result once.
 - `--require-results`: fail the batch if a required result fetch fails.
