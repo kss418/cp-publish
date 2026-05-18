@@ -42,6 +42,10 @@ RESOURCES = {
 }
 
 BUNDLED_RESOURCES = {
+    "contests": "contests.json",
+    "problems": "problems.json",
+    "merged-problems": "merged-problems.json",
+    "contest-problems": "contest-problem.json",
     "ratings": "problem-models.json",
 }
 
