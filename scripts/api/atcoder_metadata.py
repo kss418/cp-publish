@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import math
 import os
 import platform
 import re
@@ -358,9 +359,14 @@ def extract_difficulty(model: Any) -> int | None:
         return None
 
     try:
-        return round(float(difficulty))
+        raw_difficulty = float(difficulty)
     except (TypeError, ValueError):
         return None
+
+    # Match AtCoder Problems frontend's clipDifficulty:
+    # Math.round(d >= 400 ? d : 400 / Math.exp(1.0 - d / 400)).
+    clipped = raw_difficulty if raw_difficulty >= 400 else 400 / math.exp(1.0 - raw_difficulty / 400)
+    return math.floor(clipped + 0.5)
 
 
 def lookup_rating(args: argparse.Namespace) -> int:
