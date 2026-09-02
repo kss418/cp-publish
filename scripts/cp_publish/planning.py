@@ -16,6 +16,7 @@ from .metadata import (
     codeforces_rating,
     load_atcoder_metadata,
     load_codeforces_metadata,
+    resolve_atcoder_detection_by_title,
     resolve_codeforces_detection_by_round,
 )
 from .models import (
@@ -352,6 +353,9 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     detection.platform = detection.platform.lower()
     if detection.platform not in SUPPORTED_PLATFORMS:
         raise PlanError(f"Unsupported platform: {detection.platform}")
+    if detection.platform == "atcoder" and detection.contest_id and not detection.problem_id:
+        metadata = load_atcoder_metadata(args.no_metadata, args.refresh_metadata, warnings)
+        resolve_atcoder_detection_by_title(detection, source, metadata, warnings)
     if detection.platform == "codeforces" and not detection.contest_id and detection.round_number:
         metadata = load_codeforces_metadata(args.no_metadata, args.refresh_metadata, warnings)
         resolve_codeforces_detection_by_round(detection, metadata, warnings)

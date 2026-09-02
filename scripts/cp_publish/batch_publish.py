@@ -38,6 +38,7 @@ from cp_publish.planning import build_plan, make_error_plan
 
 
 PLAN_BUNDLE_SCHEMA = "cp-publish.batch.v1"
+SOURCE_MANIFEST_FIELDS = {"problem_id", "problem_title", "rating", "tags"}
 README_ENTRY_RE = re.compile(
     r"^\s*([A-Za-z0-9]+)\s*/\s*Rating\s*:\s*(.*?)\s*/\s*(.+?)\s*$"
 )
@@ -179,6 +180,65 @@ def collect_sources(values: list[str], from_dirs: list[str], recursive: bool) ->
     return unique_sources
 
 
+def normalize_manifest_tags(value: Any, source_name: str) -> str:
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    if isinstance(value, list) and value and all(isinstance(item, str) and item.strip() for item in value):
+        return ",".join(item.strip() for item in value)
+    raise BatchPublishError(
+        f"Manifest entry {source_name!r} field 'tags' must be a non-empty string or string list."
+    )
+
+
+def load_source_manifest(path: Path) -> dict[Path, dict[str, str]]:
+    try:
+        payload = json.loads(decode_plan_bytes(path.read_bytes()))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise BatchPublishError(f"Could not read source manifest: {path}: {exc}") from exc
+    if not isinstance(payload, dict) or not payload:
+        raise BatchPublishError("Source manifest must be a non-empty JSON object keyed by source path.")
+
+    entries: dict[Path, dict[str, str]] = {}
+    for raw_source, raw_overrides in payload.items():
+        if not isinstance(raw_source, str) or not raw_source.strip():
+            raise BatchPublishError("Source manifest keys must be non-empty paths.")
+        if not isinstance(raw_overrides, dict):
+            raise BatchPublishError(f"Manifest entry {raw_source!r} must be a JSON object.")
+        unknown = sorted(set(raw_overrides) - SOURCE_MANIFEST_FIELDS)
+        if unknown:
+            raise BatchPublishError(
+                f"Manifest entry {raw_source!r} has unsupported fields: {', '.join(unknown)}."
+            )
+
+        source = Path(raw_source).expanduser()
+        if not source.is_absolute():
+            source = path.parent / source
+        source = source.resolve()
+        if source in entries:
+            raise BatchPublishError(f"Source manifest resolves multiple entries to the same file: {source}")
+
+        overrides: dict[str, str] = {}
+        for field in ("problem_id", "problem_title"):
+            value = raw_overrides.get(field)
+            if value is not None:
+                if not isinstance(value, str) or not value.strip():
+                    raise BatchPublishError(
+                        f"Manifest entry {raw_source!r} field {field!r} must be a non-empty string."
+                    )
+                overrides[field] = value.strip()
+        if "rating" in raw_overrides:
+            value = raw_overrides["rating"]
+            if not isinstance(value, (str, int, float)) or isinstance(value, bool):
+                raise BatchPublishError(
+                    f"Manifest entry {raw_source!r} field 'rating' must be a string or number."
+                )
+            overrides["rating"] = str(value).strip()
+        if "tags" in raw_overrides:
+            overrides["tags"] = normalize_manifest_tags(raw_overrides["tags"], raw_source)
+        entries[source] = overrides
+    return entries
+
+
 def infer_problem_id_from_filename(path: Path) -> str | None:
     token = path.stem.split("_", 1)[0].strip()
     token = token.replace("-", "").replace(" ", "")
@@ -235,15 +295,22 @@ def validate_shared_overrides(args: argparse.Namespace, source_count: int) -> No
         )
 
 
-def plan_args_for_source(args: argparse.Namespace, source: Path) -> argparse.Namespace:
-    tags = args.tags
-    if not tags and not args.tag and args.tags_from_readme:
+def plan_args_for_source(
+    args: argparse.Namespace,
+    source: Path,
+    source_overrides: dict[str, str] | None = None,
+) -> argparse.Namespace:
+    overrides = source_overrides or {}
+    has_manifest_tags = "tags" in overrides
+    tags = overrides.get("tags", args.tags)
+    tag = [] if has_manifest_tags else list(args.tag)
+    if not tags and not tag and args.tags_from_readme:
         tags = tags_from_readme(source)
-    rating = args.rating
+    rating = overrides.get("rating", args.rating)
     if not rating and args.tags_from_readme:
         rating = rating_from_readme(source)
 
-    problem_id = args.problem_id
+    problem_id = overrides.get("problem_id", args.problem_id)
     if not problem_id and args.problem_id_from_filename:
         problem_id = infer_problem_id_from_filename(source)
 
@@ -253,7 +320,7 @@ def plan_args_for_source(args: argparse.Namespace, source: Path) -> argparse.Nam
         platform=args.platform,
         contest_id=args.contest_id,
         problem_id=problem_id,
-        problem_title=args.problem_title,
+        problem_title=overrides.get("problem_title", args.problem_title),
         contest_kind=args.contest_kind,
         contest_title=args.contest_title,
         round_number=args.round_number,
@@ -261,18 +328,23 @@ def plan_args_for_source(args: argparse.Namespace, source: Path) -> argparse.Nam
         additional_target=list(args.additional_target),
         rating=rating,
         tags=tags,
-        tag=list(args.tag),
+        tag=tag,
         no_metadata=args.no_metadata,
         refresh_metadata=args.refresh_metadata,
     )
 
 
-def build_batch_plans(args: argparse.Namespace, sources: list[Path]) -> tuple[list[dict[str, Any]], int]:
+def build_batch_plans(
+    args: argparse.Namespace,
+    sources: list[Path],
+    source_manifest: dict[Path, dict[str, str]] | None = None,
+) -> tuple[list[dict[str, Any]], int]:
     plans: list[dict[str, Any]] = []
     status = 0
     for source in sources:
         try:
-            plan, plan_status = build_plan(plan_args_for_source(args, source))
+            overrides = source_manifest.get(source, {}) if source_manifest else None
+            plan, plan_status = build_plan(plan_args_for_source(args, source, overrides))
             status = max(status, plan_status)
         except PlanError as exc:
             plan = make_error_plan(str(source), str(exc))
@@ -481,6 +553,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("sources", nargs="*", help="Solution files or directories to publish.")
     parser.add_argument("--from-dir", action="append", default=[], help="Collect solution files from a directory.")
     parser.add_argument("--recursive", action="store_true", help="Collect solution files recursively from directories.")
+    parser.add_argument(
+        "--manifest",
+        help=(
+            "JSON object keyed by source path with per-source problem_id, problem_title, "
+            "rating, and tags overrides. Relative source paths use the manifest directory."
+        ),
+    )
     parser.add_argument("--config", help="Path to cp-publish config JSON.")
     parser.add_argument("--platform", choices=sorted(SUPPORTED_PLATFORMS), help="Override detected platform.")
     parser.add_argument("--contest-id", help="Override detected contest id.")
@@ -560,8 +639,10 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--no-results cannot be used with --require-results.")
     if not args.apply_plan and not (args.copy or args.move):
         parser.error("one of --copy or --move is required unless --apply-plan is used.")
-    if args.apply_plan and (args.sources or args.from_dir):
-        parser.error("sources and --from-dir cannot be used with --apply-plan.")
+    if args.apply_plan and (args.sources or args.from_dir or args.manifest):
+        parser.error("sources, --from-dir, and --manifest cannot be used with --apply-plan.")
+    if args.manifest and (args.sources or args.from_dir):
+        parser.error("--manifest supplies the source list and cannot be combined with sources or --from-dir.")
     try:
         saved_plan_path = argument_path(args.save_plan) if args.save_plan else None
         applied_plan_path = argument_path(args.apply_plan) if args.apply_plan else None
@@ -572,9 +653,14 @@ def main(argv: list[str] | None = None) -> int:
                 parser.error("--no-results cannot be used with --require-results.")
             status = 0
         else:
-            sources = collect_sources(args.sources, args.from_dir, args.recursive)
+            source_manifest: dict[Path, dict[str, str]] = {}
+            if args.manifest:
+                source_manifest = load_source_manifest(argument_path(args.manifest))
+                sources = collect_sources([str(path) for path in source_manifest], [], False)
+            else:
+                sources = collect_sources(args.sources, args.from_dir, args.recursive)
             validate_shared_overrides(args, len(sources))
-            plans, status = build_batch_plans(args, sources)
+            plans, status = build_batch_plans(args, sources, source_manifest)
             if saved_plan_path:
                 write_batch_plan_bundle(saved_plan_path, plans, args)
 

@@ -334,7 +334,7 @@ def problem_id_value(problem: Any) -> str | None:
 def problem_title(problem: Any) -> str | None:
     if not isinstance(problem, dict):
         return None
-    for key in ("title", "name"):
+    for key in ("name", "title"):
         value = problem.get(key)
         if isinstance(value, str) and value:
             return value

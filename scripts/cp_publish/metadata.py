@@ -1,14 +1,118 @@
 from __future__ import annotations
 
+import re
+from pathlib import Path
 from typing import Any
 
 from .models import Detection
 from .paths import (
     extract_codeforces_round_number,
     infer_codeforces_kind_from_title,
+    normalize_atcoder_problem_id,
     normalize_codeforces_problem_id,
     rating_markdown,
 )
+
+
+def strip_atcoder_problem_label(title: str, problem_id: str) -> str:
+    label = normalize_atcoder_problem_id(problem_id.rsplit("_", 1)[-1])
+    pattern = rf"^\s*{re.escape(label)}\s*[.．]\s*"
+    stripped = re.sub(pattern, "", title.strip(), count=1, flags=re.IGNORECASE)
+    return stripped.strip() or title.strip()
+
+
+def atcoder_problem_title_value(
+    problem: Any,
+    problem_id: str,
+    module: Any | None = None,
+) -> str | None:
+    if isinstance(problem, dict):
+        for key in ("name", "title"):
+            value = problem.get(key)
+            if isinstance(value, str) and value.strip():
+                return strip_atcoder_problem_label(value, problem_id)
+    if module is not None:
+        value = module.problem_title(problem)
+        if isinstance(value, str) and value.strip():
+            return strip_atcoder_problem_label(value, problem_id)
+    return None
+
+
+def canonical_atcoder_title(value: str) -> str:
+    return re.sub(r"[\W_]+", "", value.casefold(), flags=re.UNICODE)
+
+
+def atcoder_problem_contest_id(problem: dict[str, Any]) -> str | None:
+    contest_id = problem.get("contest_id")
+    if isinstance(contest_id, str) and contest_id.strip():
+        return contest_id.strip().lower()
+    problem_id = problem.get("id")
+    if isinstance(problem_id, str) and "_" in problem_id:
+        return problem_id.rsplit("_", 1)[0].lower()
+    return None
+
+
+def atcoder_problem_label(problem: dict[str, Any]) -> str | None:
+    index = problem.get("problem_index")
+    if isinstance(index, str) and index.strip():
+        return normalize_atcoder_problem_id(index)
+    problem_id = problem.get("id")
+    if isinstance(problem_id, str) and "_" in problem_id:
+        return normalize_atcoder_problem_id(problem_id.rsplit("_", 1)[-1])
+    return None
+
+
+def resolve_atcoder_detection_by_title(
+    detection: Detection,
+    source: Path,
+    metadata: dict[str, Any],
+    warnings: list[str],
+) -> None:
+    if detection.problem_id or not detection.contest_id:
+        return
+
+    contest_id = detection.contest_id.lower()
+    wanted_title = canonical_atcoder_title(source.stem)
+    candidates: list[tuple[str, str]] = []
+    seen_problem_ids: set[str] = set()
+    module = metadata.get("module")
+
+    for collection_name in ("problems", "merged"):
+        collection = metadata.get(collection_name)
+        if not isinstance(collection, list):
+            continue
+        for problem in collection:
+            if not isinstance(problem, dict) or atcoder_problem_contest_id(problem) != contest_id:
+                continue
+            raw_problem_id = problem.get("id")
+            if not isinstance(raw_problem_id, str) or raw_problem_id in seen_problem_ids:
+                continue
+            title = atcoder_problem_title_value(problem, raw_problem_id, module)
+            label = atcoder_problem_label(problem)
+            if not title or not label or canonical_atcoder_title(title) != wanted_title:
+                continue
+            seen_problem_ids.add(raw_problem_id)
+            candidates.append((label, title))
+
+    if len(candidates) == 1:
+        problem_id, problem_title = candidates[0]
+        detection.problem_id = problem_id
+        detection.problem_title = problem_title
+        detection.evidence.append(
+            f"AtCoder metadata title matched {source.name} to {contest_id}_{problem_id.lower()}"
+        )
+        detection.confidence = "high"
+        return
+
+    if len(candidates) > 1:
+        labels = ", ".join(problem_id for problem_id, _title in candidates)
+        warnings.append(
+            f"AtCoder title {source.stem!r} is ambiguous within contest {contest_id}: {labels}."
+        )
+    else:
+        warnings.append(
+            f"Could not match filename title {source.stem!r} within AtCoder contest {contest_id}."
+        )
 
 
 def load_atcoder_metadata(no_metadata: bool, refresh: bool, warnings: list[str]) -> dict[str, Any]:
@@ -69,11 +173,11 @@ def atcoder_problem_title(problem_id: str, metadata: dict[str, Any], warnings: l
     if not module:
         return None
     problem = module.find_problem(metadata.get("problems", []), problem_id)
-    title = module.problem_title(problem)
+    title = atcoder_problem_title_value(problem, problem_id, module)
     if title:
         return title
     problem = module.find_problem(metadata.get("merged", []), problem_id)
-    title = module.problem_title(problem)
+    title = atcoder_problem_title_value(problem, problem_id, module)
     if title:
         return title
 
@@ -86,7 +190,7 @@ def atcoder_problem_title(problem_id: str, metadata: dict[str, Any], warnings: l
         if warnings is not None:
             warnings.append(f"AtCoder official tasks title fallback unavailable: {exc}")
         return None
-    return module.problem_title(official_problem)
+    return atcoder_problem_title_value(official_problem, problem_id, module)
 
 
 def atcoder_rating(problem_id: str, metadata: dict[str, Any]) -> str:

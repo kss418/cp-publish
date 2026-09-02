@@ -62,6 +62,8 @@ Normalize:
 - `problem_title_slug`: problem title with spaces replaced by underscores and unsafe filename characters removed.
 - `ext`: normalized language extension.
 
+Metadata titles may include the task label, for example `A. Stage Clear`. Strip the leading label and separator when it matches `problem_label`; the stored filename must be `A_Stage_Clear.cpp`, not `A_A_Stage_Clear.cpp`.
+
 Filename format:
 
 ```text

@@ -161,7 +161,9 @@ For multiple solution files, prefer `scripts/cp_publish/batch_publish.py` over r
 
 For non-trivial batches, save the dry-run plan with `--save-plan .cp-publish-plans/batch.json`, inspect the JSON, then apply it with `--apply-plan .cp-publish-plans/batch.json`. This reuses the plans from dry-run and skips rebuilding detection/metadata during apply.
 
-Use `--from-dir <dir>` for a contest folder, or pass multiple file paths directly. Use `--problem-id-from-filename` only when the filename prefix is trusted as the problem id.
+Use `--from-dir <dir>` for a contest folder, or pass multiple file paths directly. Use `--problem-id-from-filename` only when the filename prefix is trusted as the problem id. For AtCoder, a supplied `--contest-id` also enables exact normalized-title matching within that contest, so a source such as `Too_Many_Requests.cpp` can resolve to its problem label without renaming.
+
+When batch sources need different problem IDs, titles, ratings, or tags, use `--manifest <json>` instead of repeating single-file plans. The manifest is keyed by source path and each value may contain `problem_id`, `problem_title`, `rating`, and `tags`.
 
 ```powershell
 $skillRoot = "C:\path\to\cp-publish-skill"
@@ -211,7 +213,7 @@ rm "$batch_plan"
 
 Load `references/path-rules.md` when checking placement or target paths. Load `references/readme-format.md` and `references/solution-tags.md` before README-specific edits or tag inference.
 
-Use Codeforces metadata for Codeforces contest names, contest kinds, problem names, and ratings. Default Codeforces `contest.list` and `problemset.problems` calls should use the bundled `references/codeforces-cache/` snapshots before attempting fresh Codeforces API fetches. Use bundled AtCoder metadata for AtCoder problem titles and estimated difficulty; if title resources are unavailable, rely on the bundled official AtCoder tasks-page fallback, which is cached per contest. For `plan_publish.py`, use `--refresh-metadata` only when the user explicitly requests fresh metadata. For metadata and result helper scripts, use `--refresh`.
+Use Codeforces metadata for Codeforces contest names, contest kinds, problem names, and ratings. Default Codeforces `contest.list` and `problemset.problems` calls should use the bundled `references/codeforces-cache/` snapshots before attempting fresh Codeforces API fetches. Use bundled AtCoder metadata for AtCoder problem titles and estimated difficulty; strip a matching task-label prefix such as `A.` before building the filename, and convert sub-400 raw difficulty to the displayed AtCoder Problems value before writing README ratings. If title resources are unavailable, rely on the bundled official AtCoder tasks-page fallback, which is cached per contest. For `plan_publish.py`, use `--refresh-metadata` only when the user explicitly requests fresh metadata. For metadata and result helper scripts, use `--refresh`.
 
 For Codeforces contest path classification, follow `references/codeforces-contest-rule-map.json` as the canonical editable map. Prefer updating that map for named rounds, special contests, exact one-off title overrides, and Others group aliases instead of adding hard-coded contest-title branches.
 

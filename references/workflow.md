@@ -301,9 +301,37 @@ python "$skillRoot\scripts\cp_publish\batch_publish.py" --move --dry-run --tags 
 python3 "$skill_root/scripts/cp_publish/batch_publish.py" --move --dry-run --tags DP,Greedy /path/to/A.cpp /path/to/B.cpp
 ```
 
+Per-source manifest for title-only filenames or different tags:
+
+```json
+{
+  "Too_Many_Requests.cpp": {
+    "problem_id": "A",
+    "tags": ["Implementation"]
+  },
+  "N_1.cpp": {
+    "problem_id": "B",
+    "tags": ["Math"]
+  }
+}
+```
+
+Paths are resolved relative to the manifest file. Pass shared contest metadata on the command line:
+
+```powershell
+python "$skillRoot\scripts\cp_publish\batch_publish.py" --manifest C:\path\to\abc429.json --platform atcoder --contest-id abc429 --move --dry-run
+```
+
+```sh
+python3 "$skill_root/scripts/cp_publish/batch_publish.py" --manifest /path/to/abc429.json --platform atcoder --contest-id abc429 --move --dry-run
+```
+
+If problem IDs are omitted, `--contest-id` allows AtCoder sources with exact normalized title matches, such as `Too_Many_Requests.cpp` matching `Too Many Requests`, to resolve within that contest.
+
 Useful options:
 
 - `--problem-id-from-filename`: use trusted filename prefixes such as `A`, `C1`, or `G-1` as problem IDs.
+- `--manifest <path>`: use a JSON object keyed by source path for per-source `problem_id`, `problem_title`, `rating`, and `tags` overrides.
 - `--no-results`: skip result lookup; by default, batch publishing fetches each unique contest/user result once.
 - `--require-results`: fail the batch if a required result fetch fails.
 - `--allow-confirmation`: apply plans that were already reviewed and confirmed.
