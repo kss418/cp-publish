@@ -297,6 +297,12 @@ Use `scripts/cp_publish/batch_publish.py` when publishing more than one source f
 
 For non-trivial batches, save the dry-run plan and apply that saved plan. This avoids rebuilding detection and metadata work during apply:
 
+Each newly generated plan includes `source_sha256`. Both single and batch apply verify it before preparation and again before copying/moving. A source mismatch or an older plan without a hash requires a fresh reviewed plan. A batch checks all source hashes before starting its file operations.
+
+The batch groups updates by README path and validates/renders each group in-process before copying files. It writes each changed README once; no README subprocess is launched per problem. Existing unrelated entries, notes, and result rows are retained. Conflicting entries or headers in a group fail preflight.
+
+README and saved-plan writes use an adjacent temporary file, flush it, and replace the destination only after the new content is complete. On failure the old destination remains; completed operations on other files are not rolled back. Result-command failures are remembered within one apply invocation to prevent identical retries for every problem, but are retried on a new invocation. `result_fetches[].reused` distinguishes shared success/failure records from actual attempts. `--require-results` still stops at the first failed lookup.
+
 Contest folder example:
 
 ```powershell

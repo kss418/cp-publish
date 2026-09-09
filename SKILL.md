@@ -130,6 +130,7 @@ python3 "$skill_root/scripts/cp_publish/plan_publish.py" /path/to/solution.cpp -
 The plan combines detection, configured routing, path rules, README updates, and metadata. Inspect at least:
 
 - `source`
+- `source_sha256`
 - `platform`
 - `targets`
 - `readme_updates`
@@ -164,6 +165,10 @@ Use `scripts/cp_publish/apply_plan.py` instead of hand-composing copy/move and R
 For multiple solution files, prefer `scripts/cp_publish/batch_publish.py` over repeated single-file `plan_publish.py` and `apply_plan.py` calls. It builds one plan per source, prints one batch dry-run summary, applies plans in one loop, shares contest result fetches by command so each contest/user result is fetched once, and returns combined `commit_paths` plus a `suggested_commit_message`.
 
 For non-trivial batches, save the dry-run plan with `--save-plan .cp-publish-plans/batch.json`, inspect the JSON, then apply it with `--apply-plan .cp-publish-plans/batch.json`. This reuses the plans from dry-run and skips rebuilding detection/metadata during apply.
+
+Plans include the source SHA-256. Apply rejects changed sources and older plans without a fingerprint; regenerate and inspect the plan instead of bypassing this check. Sources are rechecked after README preparation and before file operations.
+
+README updates are validated and rendered together per destination in-process, then written once per changed README. README and saved-plan text writes use a same-directory temporary file followed by replacement, so a failed write preserves the existing destination. This is per-file protection, not rollback of a whole multi-file publish. Result lookup successes and failures are shared only within an apply invocation; a failed lookup is tried again on a later invocation. Gate-cache rules remain unchanged.
 
 Use `--from-dir <dir>` for a contest folder, or pass multiple file paths directly. Use `--problem-id-from-filename` only when the filename prefix is trusted as the problem id. For AtCoder, a supplied `--contest-id` also enables exact normalized-title matching within that contest, so a source such as `Too_Many_Requests.cpp` can resolve to its problem label without renaming.
 

@@ -14,6 +14,12 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from cp_publish.file_io import atomic_write_text, source_sha256
+from cp_publish.update_readme import ReadmeUpdateError, build_parser as readme_parser, prepare_readme_group
+
 
 class ApplyPlanError(RuntimeError):
     def __init__(self, message: str, returncode: int = 1) -> None:
@@ -56,6 +62,18 @@ def resolved_path(value: Any, field_name: str) -> Path:
     if not path.is_absolute():
         path = Path.cwd() / path
     return path.resolve()
+
+
+def validate_source_fingerprint(plan: dict[str, Any], source: Path) -> None:
+    expected = plan.get("source_sha256")
+    if not isinstance(expected, str) or len(expected) != 64:
+        raise ApplyPlanError("Plan has no valid source SHA-256; rebuild the plan before applying.")
+    try:
+        actual = source_sha256(source)
+    except OSError as exc:
+        raise ApplyPlanError(f"Could not hash source: {source}: {exc}") from exc
+    if actual != expected:
+        raise ApplyPlanError(f"Source changed since planning; rebuild the plan: {source}")
 
 
 def resolved_path_list(value: Any, field_name: str) -> list[Path]:
@@ -211,7 +229,7 @@ def fetch_result_json(
         raise ApplyPlanError("result command returned a non-object JSON payload.")
 
     path = temp_dir / f"contest-results-{len(list(temp_dir.iterdir())) + 1}.json"
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    atomic_write_text(path, json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
     return path, payload
 
 
@@ -226,6 +244,7 @@ def prepare_readme_updates(
     result_fetches: list[dict[str, Any]] = []
     warnings: list[str] = []
     cache: dict[tuple[str, ...], tuple[Path, dict[str, Any]]] = {}
+    failures: dict[tuple[str, ...], str] = {}
 
     for index, update in enumerate(updates):
         prepared = dict(update)
@@ -246,11 +265,15 @@ def prepare_readme_updates(
             continue
 
         key = tuple(command)
+        reused = key in cache or key in failures
         try:
+            if key in failures:
+                raise ApplyPlanError(failures[key])
             if key not in cache:
                 cache[key] = fetch_result_json(command=command, temp_dir=temp_dir)
             results_path, payload = cache[key]
         except ApplyPlanError as exc:
+            failures[key] = str(exc)
             message = f"Contest result fetch failed for {readme}: {exc}"
             if require_results:
                 raise ApplyPlanError(message) from exc
@@ -261,6 +284,7 @@ def prepare_readme_updates(
                     "status": "failed",
                     "command": command,
                     "error": str(exc),
+                    "reused": reused,
                 }
             )
             continue
@@ -274,10 +298,42 @@ def prepare_readme_updates(
                 "status": "ok",
                 "command": command,
                 "problem_count": problem_count,
+                "reused": reused,
             }
         )
 
     return prepared_updates, result_fetches, warnings
+
+
+def prepare_grouped_readmes(
+    updates: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[tuple[Path, str]]]:
+    """Prepare all README files before any source mutation; preserve result order."""
+    groups: dict[Path, list[tuple[int, argparse.Namespace]]] = {}
+    parser = readme_parser()
+    for index, update in enumerate(updates):
+        arguments = parser.parse_args(build_update_readme_args(update, dry_run=True)[2:])
+        groups.setdefault(arguments.readme.resolve(), []).append((index, arguments))
+    results: list[dict[str, Any]] = [{} for _ in updates]
+    writes: list[tuple[Path, str]] = []
+    try:
+        for path, group in groups.items():
+            prepared, rendered = prepare_readme_group([args for _, args in group])
+            for (index, _), result in zip(group, prepared):
+                results[index] = result
+            if any(result["changed"] for result in prepared):
+                writes.append((path, rendered))
+    except (ReadmeUpdateError, OSError) as exc:
+        raise ApplyPlanError(f"README preparation failed: {exc}") from exc
+    return results, writes
+
+
+def write_grouped_readmes(writes: list[tuple[Path, str]]) -> None:
+    for path, content in writes:
+        try:
+            atomic_write_text(path, content)
+        except OSError as exc:
+            raise ApplyPlanError(f"Could not replace README {path}: {exc}") from exc
 
 
 def run_update_readme(update: dict[str, Any], *, dry_run: bool) -> dict[str, Any]:
@@ -391,6 +447,8 @@ def apply_plan(plan: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]
     if not source.is_file():
         raise ApplyPlanError(f"Source path is not a file: {source}")
 
+    validate_source_fingerprint(plan, source)
+
     repo = resolved_path(plan.get("repo"), "repo")
     if not repo.exists() or not repo.is_dir():
         raise ApplyPlanError(f"Planned repo does not exist or is not a directory: {repo}")
@@ -419,21 +477,16 @@ def apply_plan(plan: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]
         )
         warnings.extend(result_warnings)
 
-        readme_preflight = [
-            run_update_readme(update, dry_run=True) for update in prepared_readme_updates
-        ]
-        if args.dry_run:
-            readme_results = readme_preflight
-        else:
+        readme_results, readme_writes = prepare_grouped_readmes(prepared_readme_updates)
+        if not args.dry_run:
+            validate_source_fingerprint(plan, source)
             copy_or_move_files(
                 source=source,
                 file_actions=file_actions,
                 move=args.move,
                 overwrite=args.overwrite,
             )
-            readme_results = [
-                run_update_readme(update, dry_run=False) for update in prepared_readme_updates
-            ]
+            write_grouped_readmes(readme_writes)
 
     changed_paths, commit_paths = changed_and_commit_paths(
         repo=repo,

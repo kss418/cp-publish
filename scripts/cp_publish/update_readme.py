@@ -11,6 +11,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from cp_publish.file_io import atomic_write_text
+
 
 ENTRY_RE = re.compile(r"^(\S+)\s*/\s*Rating\s*:\s*(.*?)\s*/\s*(.+?)\s*$")
 RESULTS_HEADING = "## Results"
@@ -496,7 +501,9 @@ def collect_result_rows(args: argparse.Namespace) -> list[ResultRow]:
     return rows
 
 
-def update_readme(args: argparse.Namespace) -> int:
+def prepare_readme_group(arguments: list[argparse.Namespace]) -> tuple[list[dict[str, Any]], str]:
+    """Validate and render every entry for one README without writing it."""
+    args = arguments[0]
     readme_path = args.readme
     if readme_path is None:
         if args.contest_dir is None:
@@ -505,13 +512,6 @@ def update_readme(args: argparse.Namespace) -> int:
 
     readme_path = readme_path.expanduser().resolve()
     expected_header = f"# {args.contest_url.strip()}"
-    new_entry = Entry(
-        problem_id=normalize_problem_id(args.problem_id),
-        rating=normalize_rating(args.rating),
-        tags=normalize_tags(args.tags, args.tag),
-    )
-    new_result_rows = collect_result_rows(args)
-
     existing_header, entries, result_rows, unknown_lines = read_existing(readme_path)
     if existing_header and existing_header != expected_header:
         if not args.force_header and not equivalent_contest_header(existing_header, expected_header):
@@ -520,42 +520,68 @@ def update_readme(args: argparse.Namespace) -> int:
                 "Pass --force-header to replace it."
             )
 
-    updated_entries, action = update_entries(entries, new_entry)
-    updated_result_rows = update_result_rows(result_rows, new_result_rows)
-    rendered = render_readme(expected_header, updated_entries, updated_result_rows)
+    results: list[dict[str, Any]] = []
+    seen: dict[str, Entry] = {}
+    loaded_results: set[Path] = set()
+    for item in arguments:
+        item_path = item.readme or (item.contest_dir / "README.md")
+        if item_path.expanduser().resolve() != readme_path or f"# {item.contest_url.strip()}" != expected_header:
+            raise ReadmeUpdateError("Conflicting README paths or contest URLs in one group.")
+        if (item.force_header, item.force_rewrite) != (args.force_header, args.force_rewrite):
+            raise ReadmeUpdateError("Conflicting README rewrite options in one group.")
+        new_entry = Entry(
+            problem_id=normalize_problem_id(item.problem_id),
+            rating=normalize_rating(item.rating),
+            tags=normalize_tags(item.tags, item.tag),
+        )
+        if new_entry.problem_id in seen and seen[new_entry.problem_id] != new_entry:
+            raise ReadmeUpdateError(f"Conflicting entries for problem {new_entry.problem_id}.")
+        seen[new_entry.problem_id] = new_entry
+        entries, action = update_entries(entries, new_entry)
+        if item.results_json and item.results_json not in loaded_results:
+            result_rows = update_result_rows(result_rows, load_results_json(item.results_json))
+            loaded_results.add(item.results_json)
+        result_rows = update_result_rows(result_rows, [parse_result_arg(raw) for raw in item.result or []])
+        results.append({"readme": str(readme_path), "action": action,
+                        "problem_id": new_entry.problem_id, "entry": new_entry.line()})
+
+    rendered = render_readme(expected_header, entries, result_rows)
     if unknown_lines and not args.force_rewrite:
         rendered = rendered.rstrip() + "\n\n" + "\n".join(unknown_lines) + "\n"
     old_text = readme_path.read_text(encoding="utf-8-sig") if readme_path.exists() else ""
     changed = old_text != rendered
 
-    result = {
-        "readme": str(readme_path),
-        "action": action if changed else "unchanged",
-        "problem_id": new_entry.problem_id,
-        "entry": new_entry.line(),
-        "result_rows": [
+    final_rows = [
             {
                 "problem_id": row.problem_id,
                 "wrong_attempts": row.wrong_attempts,
                 "accepted_at_seconds": row.accepted_at_seconds,
                 "accepted_at": format_accepted_time(row.accepted_at_seconds),
             }
-            for row in sorted(updated_result_rows, key=lambda item: problem_sort_key(item.problem_id))
-        ],
-        "changed": changed,
-    }
+            for row in sorted(result_rows, key=lambda item: problem_sort_key(item.problem_id))
+        ]
+    for result in results:
+        result.update(changed=changed, result_rows=final_rows)
+        if not changed:
+            result["action"] = "unchanged"
+    return results, rendered
+
+
+def update_readme(args: argparse.Namespace) -> int:
+    results, rendered = prepare_readme_group([args])
+    result = results[0]
+    readme_path = Path(result["readme"])
 
     if args.dry_run:
         result["content"] = rendered
-    elif changed:
-        readme_path.parent.mkdir(parents=True, exist_ok=True)
-        readme_path.write_text(rendered, encoding="utf-8")
+    elif result["changed"]:
+        atomic_write_text(readme_path, rendered)
 
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2))
     else:
         print(f"{result['action']}: {readme_path}")
-        print(new_entry.line())
+        print(result["entry"])
         if args.dry_run:
             print()
             print(rendered, end="")
@@ -613,9 +639,9 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         return update_readme(args)
-    except ReadmeUpdateError as exc:
+    except (ReadmeUpdateError, OSError) as exc:
         print(f"error: {exc}", file=sys.stderr)
-        return exc.returncode
+        return getattr(exc, "returncode", 1)
 
 
 if __name__ == "__main__":

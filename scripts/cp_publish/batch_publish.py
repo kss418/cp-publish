@@ -20,9 +20,11 @@ from cp_publish.apply_plan import (
     copy_or_move_files,
     decode_plan_bytes,
     prepare_readme_updates,
+    prepare_grouped_readmes,
     resolved_path,
     resolved_path_list,
-    run_update_readme,
+    validate_source_fingerprint,
+    write_grouped_readmes,
     unique,
     validate_file_targets,
     validate_readme_updates,
@@ -35,6 +37,7 @@ from cp_publish.paths import (
     normalize_ext,
 )
 from cp_publish.planning import build_plan, make_error_plan
+from cp_publish.file_io import atomic_write_text
 
 
 PLAN_BUNDLE_SCHEMA = "cp-publish.batch.v1"
@@ -90,8 +93,7 @@ def batch_plan_bundle(plans: list[dict[str, Any]], args: argparse.Namespace) -> 
 def write_batch_plan_bundle(path: Path, plans: list[dict[str, Any]], args: argparse.Namespace) -> None:
     bundle = batch_plan_bundle(plans, args)
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(bundle, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        atomic_write_text(path, json.dumps(bundle, ensure_ascii=False, indent=2) + "\n")
     except OSError as exc:
         raise BatchPublishError(f"Could not write batch plan: {path}: {exc}") from exc
 
@@ -367,6 +369,8 @@ def normalize_plan(plan: dict[str, Any], args: argparse.Namespace) -> dict[str, 
     if not source.is_file():
         raise ApplyPlanError(f"Source path is not a file: {source}")
 
+    validate_source_fingerprint(plan, source)
+
     repo = resolved_path(plan.get("repo"), "repo")
     if not repo.exists() or not repo.is_dir():
         raise ApplyPlanError(f"Planned repo does not exist or is not a directory: {repo}")
@@ -483,10 +487,10 @@ def apply_batch(plans: list[dict[str, Any]], args: argparse.Namespace) -> dict[s
         )
         warnings.extend(result_warnings)
 
-        readme_preflight = [run_update_readme(update, dry_run=True) for update in prepared_updates]
-        if args.dry_run:
-            readme_results = readme_preflight
-        else:
+        readme_results, readme_writes = prepare_grouped_readmes(prepared_updates)
+        if not args.dry_run:
+            for action in actions:
+                validate_source_fingerprint(action["plan"], action["source"])
             for action in actions:
                 copy_or_move_files(
                     source=action["source"],
@@ -494,7 +498,7 @@ def apply_batch(plans: list[dict[str, Any]], args: argparse.Namespace) -> dict[s
                     move=args.move,
                     overwrite=args.overwrite,
                 )
-            readme_results = [run_update_readme(update, dry_run=False) for update in prepared_updates]
+            write_grouped_readmes(readme_writes)
 
     all_changed_paths: list[str] = []
     all_commit_paths: list[str] = []

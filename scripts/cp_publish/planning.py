@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import load_route
+from .file_io import source_sha256
 from .detection import apply_overrides, detect_solution
 from .metadata import (
     atcoder_problem_title,
@@ -342,6 +343,11 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     if not source.is_file():
         raise PlanError(f"Source path is not a file: {source}")
 
+    try:
+        fingerprint = source_sha256(source)
+    except OSError as exc:
+        raise PlanError(f"Could not hash source: {source}: {exc}") from exc
+
     ext = normalize_ext(source)
     unknown_extension = ext not in SOURCE_EXTENSIONS
     if unknown_extension:
@@ -409,6 +415,7 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
 
     plan = {
         "source": str(source),
+        "source_sha256": fingerprint,
         "platform": detection.platform,
         "repo": str(route.repo_path),
         "base_dir": route.base_dir,
@@ -432,6 +439,11 @@ def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         "metadata": platform_plan["metadata"],
         "warnings": warnings,
     }
+    try:
+        if source_sha256(source) != fingerprint:
+            raise PlanError(f"Source changed during planning; rebuild the plan: {source}")
+    except OSError as exc:
+        raise PlanError(f"Could not recheck source: {source}: {exc}") from exc
     return plan, 0
 
 
