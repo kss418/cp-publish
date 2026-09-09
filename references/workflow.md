@@ -36,6 +36,34 @@ Do not cache failed checks. If a later git, gh, metadata, result, or push comman
 
 The session cache does not replace per-publish safety checks: always inspect the current working tree, build a fresh plan, dry-run the plan, inspect warnings/conflicts, and commit explicit paths only.
 
+## Grouped Checks
+
+Reduce tool round trips using dependency-aware groups:
+
+1. Read required references alongside the dependency check. After dependencies pass, validate and resolve the selected route together, stopping on failure.
+2. Once routing succeeds, run source reads/tag inspection and local repository inspection concurrently using awaited tool calls (for example, `Promise.allSettled`); inspect every result. Handle approval requests separately. Auth followed by fetch may share a sequential shell call with exit checks; compare upstream state only after fetch completes.
+3. After applying the reviewed batch, group source/target hash checks, README inspection, and changed-path inspection in one call. Inspect only planned sources and relevant target paths instead of scanning the entire archive.
+4. After commit, group scope verification and push dry-run. Inspect the result before the actual push. After push, group status and upstream comparison. If source deletion is authorized, verify all source/target pairs before deleting the explicit originals.
+
+Keep plan application, commit, push, and cleanup ordered by their dependencies. Do not run concurrent writers against the same repository or metadata cache. Reuse saved batch plans and valid session gates; the batch helper already shares result lookups across sources.
+
+Windows PowerShell does not reliably turn native command failures into terminating errors with `$ErrorActionPreference` alone. Check `$LASTEXITCODE` immediately after each command, before parsing output or proceeding:
+
+```powershell
+$ErrorActionPreference = 'Stop'
+$publishStatus = git status --short --branch
+if ($LASTEXITCODE -ne 0) { throw 'git status failed' }
+$publishPaths = git diff --name-status
+if ($LASTEXITCODE -ne 0) { throw 'git diff failed' }
+$publishStaged = git diff --cached --name-status
+if ($LASTEXITCODE -ne 0) { throw 'staged diff failed' }
+$publishStatus
+$publishPaths
+$publishStaged
+```
+
+For batch JSON, capture output, check the process exit code, then call `ConvertFrom-Json`; retain warnings, errors, and confirmation flags in summaries. Avoid piping the native command directly into a formatter that can hide failure. If a tool yields a running session, resume it and inspect the final exit code before dependent edits or publishing. On POSIX shells, use explicit exit checks or `&&` for dependent commands and inspect each parallel job's exit status.
+
 ## Solution Build Validation
 
 Do not compile or run solution source files during routine publishing. The publish workflow validates detection, paths, README updates, git scope, and push behavior; it does not validate algorithm correctness or language compilation by default.

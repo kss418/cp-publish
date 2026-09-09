@@ -49,6 +49,10 @@ Invalidate the session cache and rerun the relevant gate when the target reposit
 
 This cache only skips gates. Still inspect the current working tree before each publish, still build/apply plans for each publish, and still commit only explicit paths.
 
+## Efficient Tool Calls
+
+After dependency and route checks pass, run independent source/reference reads and local repository inspections in parallel, awaiting and inspecting every result. Group related verification commands in one shell call and check each exit code before continuing. Keep approval requests and mutations sequential; wait for running sessions to finish before dependent work. See "Grouped Checks" in `references/workflow.md` for execution groups and examples.
+
 ## Solution Build Validation
 
 Do not compile, run, submit, or otherwise execute competitive programming solution code as part of the default publish workflow. Treat publishing as metadata, placement, README, git, and push work only.
