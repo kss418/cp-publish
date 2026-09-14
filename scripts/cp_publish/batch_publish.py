@@ -38,6 +38,7 @@ from cp_publish.paths import (
 )
 from cp_publish.planning import build_plan, make_error_plan
 from cp_publish.file_io import atomic_write_text
+from cp_publish.metadata import metadata_session
 
 
 PLAN_BUNDLE_SCHEMA = "cp-publish.batch.v1"
@@ -90,8 +91,11 @@ def batch_plan_bundle(plans: list[dict[str, Any]], args: argparse.Namespace) -> 
     }
 
 
-def write_batch_plan_bundle(path: Path, plans: list[dict[str, Any]], args: argparse.Namespace) -> None:
+def write_batch_plan_bundle(path: Path, plans: list[dict[str, Any]], args: argparse.Namespace,
+                            result_snapshots: list[dict[str, Any]] | None = None) -> None:
     bundle = batch_plan_bundle(plans, args)
+    if result_snapshots:
+        bundle["result_snapshots"] = result_snapshots
     try:
         atomic_write_text(path, json.dumps(bundle, ensure_ascii=False, indent=2) + "\n")
     except OSError as exc:
@@ -336,6 +340,7 @@ def plan_args_for_source(
     )
 
 
+@metadata_session
 def build_batch_plans(
     args: argparse.Namespace,
     sources: list[Path],
@@ -464,7 +469,9 @@ def suggested_commit_message(plans: list[dict[str, Any]]) -> str:
     return f"Publish {len(usable)} competitive programming solutions"
 
 
-def apply_batch(plans: list[dict[str, Any]], args: argparse.Namespace) -> dict[str, Any]:
+def apply_batch(plans: list[dict[str, Any]], args: argparse.Namespace, *,
+                saved_results: Any = None,
+                captured_results: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     actions = [normalize_plan(plan, args) for plan in plans]
     ensure_batch_safe(actions, move=args.move)
 
@@ -484,6 +491,8 @@ def apply_batch(plans: list[dict[str, Any]], args: argparse.Namespace) -> dict[s
             with_results=with_results,
             require_results=args.require_results,
             temp_dir=Path(temp_dir_name),
+            saved_results=None if getattr(args, "no_saved_results", False) else saved_results,
+            captured_results=captured_results,
         )
         warnings.extend(result_warnings)
 
@@ -631,6 +640,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="Skip contest result fetches and update only solution README entries.",
     )
     parser.add_argument("--require-results", action="store_true", help="Fail if contest results cannot be fetched.")
+    parser.add_argument("--no-saved-results", action="store_true",
+                        help="Ignore results embedded in a saved plan; invoke the result helper again (its API cache still applies).")
     parser.add_argument("--overwrite", action="store_true", help="Allow replacing existing target files.")
     parser.add_argument("--commit-message", help="Override the suggested batch commit message.")
     return parser
@@ -650,6 +661,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         saved_plan_path = argument_path(args.save_plan) if args.save_plan else None
         applied_plan_path = argument_path(args.apply_plan) if args.apply_plan else None
+        bundle: dict[str, Any] = {}
         if applied_plan_path:
             plans, bundle = load_batch_plan_bundle(applied_plan_path)
             apply_saved_options(args, bundle)
@@ -665,7 +677,7 @@ def main(argv: list[str] | None = None) -> int:
                 sources = collect_sources(args.sources, args.from_dir, args.recursive)
             validate_shared_overrides(args, len(sources))
             plans, status = build_batch_plans(args, sources, source_manifest)
-            if saved_plan_path:
+            if saved_plan_path and (status or any(p.get("errors") or p.get("needs_confirmation") for p in plans)):
                 write_batch_plan_bundle(saved_plan_path, plans, args)
 
         if any(plan.get("errors") for plan in plans):
@@ -697,8 +709,11 @@ def main(argv: list[str] | None = None) -> int:
                 result["applied_plan"] = str(applied_plan_path)
             print(json.dumps(result, ensure_ascii=False, indent=2))
             return 1
-        result = apply_batch(plans, args)
+        snapshots: list[dict[str, Any]] = []
+        result = apply_batch(plans, args, saved_results=bundle.get("result_snapshots"),
+                             captured_results=snapshots)
         if saved_plan_path:
+            write_batch_plan_bundle(saved_plan_path, plans, args, snapshots)
             result["saved_plan"] = str(saved_plan_path)
         if applied_plan_path:
             result["applied_plan"] = str(applied_plan_path)

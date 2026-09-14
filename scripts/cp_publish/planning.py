@@ -10,6 +10,7 @@ from .config import load_route
 from .file_io import source_sha256
 from .detection import apply_overrides, detect_solution
 from .metadata import (
+    metadata_session,
     atcoder_problem_title,
     atcoder_rating,
     classify_codeforces_contest,
@@ -334,6 +335,7 @@ def java_public_class_rename_warning(source: Path, targets: list[str]) -> str | 
     )
 
 
+@metadata_session
 def build_plan(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     source = Path(args.source).expanduser().resolve()
     warnings: list[str] = []

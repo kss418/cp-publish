@@ -49,6 +49,8 @@ Invalidate the session cache and rerun the relevant gate when the target reposit
 
 This cache only skips gates. Still inspect the current working tree before each publish, still build/apply plans for each publish, and still commit only explicit paths.
 
+Planning shares parsed platform metadata in memory for one single/batch invocation, including title detection and target planning. A later invocation gets a new snapshot; `--refresh-metadata` refreshes each resource once per invocation. This does not cache auth or routing decisions.
+
 ## Efficient Tool Calls
 
 After dependency and route checks pass, run independent source/reference reads and local repository inspections in parallel, awaiting and inspecting every result. Group related verification commands in one shell call and check each exit code before continuing. Keep approval requests and mutations sequential; wait for running sessions to finish before dependent work. See "Grouped Checks" in `references/workflow.md` for execution groups and examples.
@@ -166,9 +168,11 @@ For multiple solution files, prefer `scripts/cp_publish/batch_publish.py` over r
 
 For non-trivial batches, save the dry-run plan with `--save-plan .cp-publish-plans/batch.json`, inspect the JSON, then apply it with `--apply-plan .cp-publish-plans/batch.json`. This reuses the plans from dry-run and skips rebuilding detection/metadata during apply.
 
+Successful dry-run result payloads are embedded in the saved plan and reused for up to 300 seconds only for the exact same result command (including contest and user). Expired, invalid, or unmatched records invoke the normal result helper. Use `--no-saved-results` to bypass embedded results; the helper's normal API cache still applies. Failures are never embedded, and reuse does not renew the original timestamp. `result_fetches[].from_saved_plan` reports this reuse.
+
 Plans include the source SHA-256. Apply rejects changed sources and older plans without a fingerprint; regenerate and inspect the plan instead of bypassing this check. Sources are rechecked after README preparation and before file operations.
 
-README updates are validated and rendered together per destination in-process, then written once per changed README. README and saved-plan text writes use a same-directory temporary file followed by replacement, so a failed write preserves the existing destination. This is per-file protection, not rollback of a whole multi-file publish. Result lookup successes and failures are shared only within an apply invocation; a failed lookup is tried again on a later invocation. Gate-cache rules remain unchanged.
+README updates are validated and rendered together per destination in-process, then written once per changed README. README and saved-plan text writes use a same-directory temporary file followed by replacement, so a failed write preserves the existing destination. This is per-file protection, not rollback of a whole multi-file publish. Repeated result commands share successes and failures within an apply invocation; only successful results can also be embedded in saved plans as described above. A failed lookup is tried again on a later invocation. Gate-cache rules remain unchanged.
 
 Use `--from-dir <dir>` for a contest folder, or pass multiple file paths directly. Use `--problem-id-from-filename` only when the filename prefix is trusted as the problem id. For AtCoder, a supplied `--contest-id` also enables exact normalized-title matching within that contest, so a source such as `Too_Many_Requests.cpp` can resolve to its problem label without renaming.
 
@@ -254,14 +258,15 @@ Use only README tags that appear as values in `references/solvedac-tag-map.json`
 
 Use the bundled GitHub helper where possible:
 
+After the commit has been reviewed and pushing is authorized, prefer `push --verify-first`: it checks auth/setup once, runs push dry-run, verifies that HEAD/branch/origin/upstream remain unchanged, then pushes. A failure stops the sequence. This flag performs an actual push; use `push --dry-run` alone when the output still needs human review. No credentials or auth-success files are saved for reuse across processes.
+
 ```powershell
 $skillRoot = "C:\path\to\cp-publish-skill"
 Set-Location C:\path\to\resolved\repo
 python "$skillRoot\scripts\init\github_integration.py" status
 python "$skillRoot\scripts\init\github_integration.py" commit -m "Add AtCoder ABC350 A solution" path/to/file.cpp
 python "$skillRoot\scripts\init\github_integration.py" commit -m "Publish Codeforces solutions" --paths-from-json .cp-publish-plans/batch-result.json
-python "$skillRoot\scripts\init\github_integration.py" push --dry-run
-python "$skillRoot\scripts\init\github_integration.py" push
+python "$skillRoot\scripts\init\github_integration.py" push --verify-first
 ```
 
 ```sh
@@ -270,8 +275,7 @@ cd /path/to/resolved/repo
 python3 "$skill_root/scripts/init/github_integration.py" status
 python3 "$skill_root/scripts/init/github_integration.py" commit -m "Add AtCoder ABC350 A solution" path/to/file.cpp
 python3 "$skill_root/scripts/init/github_integration.py" commit -m "Publish Codeforces solutions" --paths-from-json .cp-publish-plans/batch-result.json
-python3 "$skill_root/scripts/init/github_integration.py" push --dry-run
-python3 "$skill_root/scripts/init/github_integration.py" push
+python3 "$skill_root/scripts/init/github_integration.py" push --verify-first
 ```
 
 Stage and commit only explicit paths or pathspecs. For large batches, prefer `--paths-from-json <batch-result.json>` when using `batch_publish.py` output, or `--paths-from-file <commit-paths.txt>` for a newline-delimited path list. Directory pathspecs are allowed; the helper expands them through git and still refuses unrelated staged paths.

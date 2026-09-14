@@ -36,6 +36,8 @@ Do not cache failed checks. If a later git, gh, metadata, result, or push comman
 
 The session cache does not replace per-publish safety checks: always inspect the current working tree, build a fresh plan, dry-run the plan, inspect warnings/conflicts, and commit explicit paths only.
 
+The planner also shares parsed AtCoder/Codeforces resources across title detection and all plans in the same invocation. The in-memory snapshot ends on return or error, so a subsequent invocation reloads resources according to the API helper's disk-cache rules. Explicit refresh loads each resource once per invocation; warnings are propagated to every affected plan.
+
 ## Grouped Checks
 
 Reduce tool round trips using dependency-aware groups:
@@ -43,7 +45,7 @@ Reduce tool round trips using dependency-aware groups:
 1. Read required references alongside the dependency check. After dependencies pass, validate and resolve the selected route together, stopping on failure.
 2. Once routing succeeds, run source reads/tag inspection and local repository inspection concurrently using awaited tool calls (for example, `Promise.allSettled`); inspect every result. Handle approval requests separately. Auth followed by fetch may share a sequential shell call with exit checks; compare upstream state only after fetch completes.
 3. After applying the reviewed batch, group source/target hash checks, README inspection, and changed-path inspection in one call. Inspect only planned sources and relevant target paths instead of scanning the entire archive.
-4. After commit, group scope verification and push dry-run. Inspect the result before the actual push. After push, group status and upstream comparison. If source deletion is authorized, verify all source/target pairs before deleting the explicit originals.
+4. After commit, inspect its scope. For an already authorized push of that reviewed commit, use `github_integration.py push --verify-first` to combine dry-run and push with one auth/setup check. If dry-run output still needs human review, use separate calls. After push, group status and upstream comparison. If source deletion is authorized, verify all source/target pairs before deleting the explicit originals.
 
 Keep plan application, commit, push, and cleanup ordered by their dependencies. Do not run concurrent writers against the same repository or metadata cache. Reuse saved batch plans and valid session gates; the batch helper already shares result lookups across sources.
 
@@ -299,6 +301,8 @@ For non-trivial batches, save the dry-run plan and apply that saved plan. This a
 
 Each newly generated plan includes `source_sha256`. Both single and batch apply verify it before preparation and again before copying/moving. A source mismatch or an older plan without a hash requires a fresh reviewed plan. A batch checks all source hashes before starting its file operations.
 
+After a successful dry-run, `--save-plan` embeds successful result snapshots with their original fetch timestamps. `--apply-plan` reuses a snapshot only when its payload is valid, its age is below 300 seconds, and its command exactly matches the planned result command. Contest/user changes therefore miss the cache. Failures, expired entries, future timestamps, and malformed snapshots are not reused. Applying or re-saving a snapshot does not renew its age. `--no-saved-results` bypasses these snapshots and invokes the result helper, whose API cache still applies. Remove saved plans with other temporary publish artifacts before committing; snapshots contain public result data, not credentials.
+
 The batch groups updates by README path and validates/renders each group in-process before copying files. It writes each changed README once; no README subprocess is launched per problem. Existing unrelated entries, notes, and result rows are retained. Conflicting entries or headers in a group fail preflight.
 
 README and saved-plan writes use an adjacent temporary file, flush it, and replace the destination only after the new content is complete. On failure the old destination remains; completed operations on other files are not rolled back. Result-command failures are remembered within one apply invocation to prevent identical retries for every problem, but are retried on a new invocation. `result_fetches[].reused` distinguishes shared success/failure records from actual attempts. `--require-results` still stops at the first failed lookup.
@@ -368,6 +372,7 @@ Useful options:
 - `--manifest <path>`: use a JSON object keyed by source path for per-source `problem_id`, `problem_title`, `rating`, and `tags` overrides.
 - `--no-results`: skip result lookup; by default, batch publishing fetches each unique contest/user result once.
 - `--require-results`: fail the batch if a required result fetch fails.
+- `--no-saved-results`: ignore result snapshots embedded in a saved plan; invoke the normal helper again.
 - `--allow-confirmation`: apply plans that were already reviewed and confirmed.
 - `--save-plan <path>`: save the built batch plan bundle after planning.
 - `--apply-plan <path>`: load a saved batch plan bundle and apply or dry-run it without rebuilding plans.
@@ -394,13 +399,14 @@ python3 scripts/cp_publish/update_readme.py --contest-dir /path/to/contest --con
 
 Use the bundled GitHub helper for safe status, auth, commit, and push operations:
 
+`push --verify-first` performs both dry-run and actual push after one auth/setup check. Use it only for a reviewed commit with user authorization to push. A failed dry-run or changed HEAD/branch/origin/upstream stops before actual push. It does not persist authentication state; separate helper invocations authenticate again. Standalone `push --dry-run` remains available for review-only requests.
+
 ```powershell
 Set-Location $repo
 python "$skillRoot\scripts\init\github_integration.py" status
 python "$skillRoot\scripts\init\github_integration.py" commit -m "Add AtCoder ABC350 A solution" path/to/file.cpp
 python "$skillRoot\scripts\init\github_integration.py" commit -m "Publish Codeforces solutions" --paths-from-json .cp-publish-plans/batch-result.json
-python "$skillRoot\scripts\init\github_integration.py" push --dry-run
-python "$skillRoot\scripts\init\github_integration.py" push
+python "$skillRoot\scripts\init\github_integration.py" push --verify-first
 ```
 
 ```sh
@@ -408,8 +414,7 @@ cd "$repo"
 python3 "$skill_root/scripts/init/github_integration.py" status
 python3 "$skill_root/scripts/init/github_integration.py" commit -m "Add AtCoder ABC350 A solution" path/to/file.cpp
 python3 "$skill_root/scripts/init/github_integration.py" commit -m "Publish Codeforces solutions" --paths-from-json .cp-publish-plans/batch-result.json
-python3 "$skill_root/scripts/init/github_integration.py" push --dry-run
-python3 "$skill_root/scripts/init/github_integration.py" push
+python3 "$skill_root/scripts/init/github_integration.py" push --verify-first
 ```
 
 Stage and commit only explicit paths or pathspecs. For large batches, pass the batch output with `--paths-from-json <batch-result.json>` or write newline-delimited paths and pass `--paths-from-file <commit-paths.txt>`. Directory pathspecs are allowed; the helper expands them through git and still refuses unrelated staged paths. Preserve unrelated user changes in the working tree.

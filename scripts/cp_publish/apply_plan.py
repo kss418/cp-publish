@@ -11,6 +11,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
+import math
 from pathlib import Path
 from typing import Any
 
@@ -18,7 +20,33 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from cp_publish.file_io import atomic_write_text, source_sha256
-from cp_publish.update_readme import ReadmeUpdateError, build_parser as readme_parser, prepare_readme_group
+from cp_publish.update_readme import ReadmeUpdateError, build_parser as readme_parser, prepare_readme_group, results_from_payload
+
+RESULT_SNAPSHOT_MAX_AGE = 300
+
+
+def valid_result_snapshots(value: Any) -> dict[tuple[str, ...], dict[str, Any]]:
+    """Invalid, expired, or future-dated records fall back to the normal helper."""
+    records = {}
+    if not isinstance(value, list):
+        return records
+    now = time.time()
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        command, fetched_at, payload = item.get("command"), item.get("fetched_at"), item.get("payload")
+        if not isinstance(command, list) or not command or not all(isinstance(x, str) and x for x in command):
+            continue
+        if isinstance(fetched_at, bool) or not isinstance(fetched_at, (int, float)) or not math.isfinite(fetched_at):
+            continue
+        if not 0 <= now - fetched_at < RESULT_SNAPSHOT_MAX_AGE or not isinstance(payload, dict):
+            continue
+        try:
+            results_from_payload(payload)
+        except (ReadmeUpdateError, TypeError, ValueError, OverflowError):
+            continue
+        records[tuple(command)] = item
+    return records
 
 
 class ApplyPlanError(RuntimeError):
@@ -239,12 +267,16 @@ def prepare_readme_updates(
     with_results: bool,
     require_results: bool,
     temp_dir: Path,
+    saved_results: Any = None,
+    captured_results: list[dict[str, Any]] | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[str]]:
     prepared_updates: list[dict[str, Any]] = []
     result_fetches: list[dict[str, Any]] = []
     warnings: list[str] = []
     cache: dict[tuple[str, ...], tuple[Path, dict[str, Any]]] = {}
     failures: dict[tuple[str, ...], str] = {}
+    snapshots = valid_result_snapshots(saved_results)
+    restored: set[tuple[str, ...]] = set()
 
     for index, update in enumerate(updates):
         prepared = dict(update)
@@ -270,7 +302,18 @@ def prepare_readme_updates(
             if key in failures:
                 raise ApplyPlanError(failures[key])
             if key not in cache:
-                cache[key] = fetch_result_json(command=command, temp_dir=temp_dir)
+                record = snapshots.get(key)
+                if record is not None:
+                    payload = record["payload"]
+                    results_path = temp_dir / f"saved-results-{len(cache)}.json"
+                    atomic_write_text(results_path, json.dumps(payload, ensure_ascii=False) + "\n")
+                    cache[key] = (results_path, payload)
+                    restored.add(key)
+                else:
+                    cache[key] = fetch_result_json(command=command, temp_dir=temp_dir)
+                    record = {"command": command, "fetched_at": time.time(), "payload": cache[key][1]}
+                if captured_results is not None and valid_result_snapshots([record]):
+                    captured_results.append(record)
             results_path, payload = cache[key]
         except ApplyPlanError as exc:
             failures[key] = str(exc)
@@ -299,6 +342,7 @@ def prepare_readme_updates(
                 "command": command,
                 "problem_count": problem_count,
                 "reused": reused,
+                "from_saved_plan": key in restored,
             }
         )
 

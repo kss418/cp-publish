@@ -154,10 +154,9 @@ def ensure_auth(*, login: bool, setup_git: bool, open_browser: bool = True) -> N
                 "`auth --login`, or run `gh auth login --web --git-protocol https` yourself."
             )
         gh_auth_login_web(open_browser=open_browser)
-
-    status = gh_auth_status()
-    if status.returncode != 0:
-        raise CommandError("GitHub CLI authentication still failed after login.")
+        status = gh_auth_status()
+        if status.returncode != 0:
+            raise CommandError("GitHub CLI authentication still failed after login.")
 
     if setup_git:
         run([require_tool("gh"), "auth", "setup-git"], check=True, capture=False)
@@ -288,10 +287,13 @@ def commit_paths(root: Path, paths: list[str], message: str) -> None:
     run([git, "commit", "-m", message], cwd=root, capture=False)
 
 
-def push_current_branch(root: Path, *, dry_run: bool) -> None:
+def push_current_branch(root: Path, *, dry_run: bool, verify_first: bool = False) -> None:
+    if verify_first and dry_run:
+        raise CommandError("--verify-first cannot be combined with --dry-run.")
     ensure_auth(login=False, setup_git=True)
 
-    if origin_url(root) is None:
+    remote = origin_url(root)
+    if remote is None:
         raise CommandError("Remote `origin` is missing; add it before pushing.")
 
     branch = current_branch(root)
@@ -303,6 +305,12 @@ def push_current_branch(root: Path, *, dry_run: bool) -> None:
     if upstream is None:
         args.extend(["-u", "origin", branch])
 
+    if verify_first:
+        head = run([require_tool("git"), "rev-parse", "HEAD"], cwd=root).stdout.strip()
+        run([args[0], "push", "--dry-run", *args[2:]], cwd=root, capture=False)
+        current_head = run([require_tool("git"), "rev-parse", "HEAD"], cwd=root).stdout.strip()
+        if (remote, branch, upstream, head) != (origin_url(root), current_branch(root), upstream_ref(root), current_head):
+            raise CommandError("Repository state changed during push dry-run; rerun after inspection.")
     run(args, cwd=root, capture=False)
 
 
@@ -359,6 +367,8 @@ def build_parser() -> argparse.ArgumentParser:
     push_parser.add_argument(
         "--dry-run", action="store_true", help="Show what would be pushed."
     )
+    push_parser.add_argument("--verify-first", action="store_true",
+                             help="Run dry-run then actual push with one auth check; use only after the commit is reviewed and push is authorized.")
 
     return parser
 
@@ -382,7 +392,7 @@ def main(argv: list[str] | None = None) -> int:
             commit_paths(root, collect_commit_paths(args, root), args.message)
         elif args.command == "push":
             root = repo_root(Path(args.repo).resolve())
-            push_current_branch(root, dry_run=args.dry_run)
+            push_current_branch(root, dry_run=args.dry_run, verify_first=args.verify_first)
         else:
             parser.error(f"Unknown command: {args.command}")
     except subprocess.CalledProcessError as exc:

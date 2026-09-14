@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import re
+from contextvars import ContextVar
+from functools import wraps
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +14,40 @@ from .paths import (
     normalize_codeforces_problem_id,
     rating_markdown,
 )
+
+
+_SNAPSHOT: ContextVar[dict | None] = ContextVar("publish_metadata_snapshot", default=None)
+
+
+def metadata_session(function):
+    """Share resources only within one single/batch planning invocation."""
+    @wraps(function)
+    def wrapped(*args, **kwargs):
+        if _SNAPSHOT.get() is not None:
+            return function(*args, **kwargs)
+        token = _SNAPSHOT.set({})
+        try:
+            return function(*args, **kwargs)
+        finally:
+            _SNAPSHOT.reset(token)
+    return wrapped
+
+
+def snapshot_loader(function):
+    @wraps(function)
+    def wrapped(no_metadata: bool, refresh: bool, warnings: list[str]):
+        snapshot = _SNAPSHOT.get()
+        if snapshot is None:
+            return function(no_metadata, refresh, warnings)
+        key = (function.__name__, no_metadata, refresh)
+        if key not in snapshot:
+            resource_warnings: list[str] = []
+            data = function(no_metadata, refresh, resource_warnings)
+            snapshot[key] = (data, tuple(resource_warnings))
+        data, resource_warnings = snapshot[key]
+        warnings.extend(w for w in resource_warnings if w not in warnings)
+        return data
+    return wrapped
 
 
 def strip_atcoder_problem_label(title: str, problem_id: str) -> str:
@@ -115,6 +151,7 @@ def resolve_atcoder_detection_by_title(
         )
 
 
+@snapshot_loader
 def load_atcoder_metadata(no_metadata: bool, refresh: bool, warnings: list[str]) -> dict[str, Any]:
     if no_metadata:
         return {}
@@ -146,6 +183,7 @@ def load_atcoder_metadata(no_metadata: bool, refresh: bool, warnings: list[str])
         return {}
 
 
+@snapshot_loader
 def load_codeforces_metadata(no_metadata: bool, refresh: bool, warnings: list[str]) -> dict[str, Any]:
     if no_metadata:
         return {}
