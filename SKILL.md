@@ -256,6 +256,10 @@ Use only README tags that appear as values in `references/solvedac-tag-map.json`
 
 ## GitHub Commit And Push
 
+For a push-only follow-up of already prepared changes, let the push helper perform authentication; do not run a separate `gh auth status`, `auth`, or auth-bearing `status` immediately beforehand. Use local git commands for scope inspection. This exception does not remove the early auth gate for a new solution publish.
+
+For latency diagnosis, pass `--timings` before the GitHub helper subcommand. It emits per-process durations to stderr without command arguments or output. Measure before adding caches or weakening checks; do not perform a real push solely to benchmark it.
+
 Use the bundled GitHub helper where possible:
 
 After the commit has been reviewed and pushing is authorized, prefer `push --verify-first`: it checks auth/setup once, runs push dry-run, verifies that HEAD/branch/origin/upstream remain unchanged, then pushes. A failure stops the sequence. This flag performs an actual push; use `push --dry-run` alone when the output still needs human review. No credentials or auth-success files are saved for reuse across processes.

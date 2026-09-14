@@ -8,7 +8,9 @@ import json
 import os
 import subprocess
 import sys
+import time
 import webbrowser
+from contextvars import ContextVar
 from pathlib import Path
 
 if __package__ in {None, ""}:
@@ -17,6 +19,7 @@ if __package__ in {None, ""}:
 from init.check_dependencies import install_command, tool_path
 
 GITHUB_DEVICE_URL = "https://github.com/login/device"
+TIMINGS: ContextVar[bool] = ContextVar("github_timings", default=False)
 
 
 class CommandError(RuntimeError):
@@ -33,17 +36,31 @@ def run(
     capture: bool = True,
     input_text: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        args,
-        cwd=str(cwd) if cwd else None,
-        check=check,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        input=input_text,
-        stdout=subprocess.PIPE if capture else None,
-        stderr=subprocess.PIPE if capture else None,
-    )
+    start = time.perf_counter() if TIMINGS.get() else None
+    code = None
+    try:
+        result = subprocess.run(
+            args,
+            cwd=str(cwd) if cwd else None,
+            check=check,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            input=input_text,
+            stdout=subprocess.PIPE if capture else None,
+            stderr=subprocess.PIPE if capture else None,
+        )
+        code = result.returncode
+        return result
+    except subprocess.CalledProcessError as exc:
+        code = exc.returncode
+        raise
+    finally:
+        if start is not None:
+            # Never log arguments, output, credentials, or repository URLs.
+            print(json.dumps({"timing": Path(args[0]).stem,
+                              "seconds": round(time.perf_counter() - start, 6),
+                              "returncode": code}), file=sys.stderr)
 
 
 def require_tool(name: str) -> str:
@@ -323,6 +340,8 @@ def build_parser() -> argparse.ArgumentParser:
         default=".",
         help="Path inside the target git repository. Defaults to current directory.",
     )
+    parser.add_argument("--timings", action="store_true",
+                        help="Emit per-process durations to stderr without arguments or output.")
 
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -376,6 +395,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    timing_token = TIMINGS.set(args.timings)
 
     try:
         if args.command == "auth":
@@ -404,6 +424,8 @@ def main(argv: list[str] | None = None) -> int:
     except CommandError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return exc.returncode
+    finally:
+        TIMINGS.reset(timing_token)
 
     return 0
 
